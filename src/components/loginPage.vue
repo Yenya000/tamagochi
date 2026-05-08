@@ -1,80 +1,73 @@
-<script setup>
-import { reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
-
-const router = useRouter()
-const { login } = useAuth()
-
-const form = reactive({
-  email: '',
-  password: ''
-})
-
-const error = reactive({
-  message: ''
-})
-
-function handleSubmit() {
-  error.message = ''
-  
-  if (!form.email || !form.password) {
-    error.message = 'Заполните все поля'
-    return
-  }
-
-  const result = login(form.email, form.password)
-  
-  if (result.success) {
-    router.push({ name: 'home' })
-  } else {
-    error.message = result.error
-  }
-}
-</script>
-
 <template>
-  <div class="form-container">
-    <div class="auth-card">
-      <h3>С возвращением!</h3>
-      <p class="auth-subtitle">Твое дерево скучало по тебе 🌳</p>
-
-      <div class="form-group">
-        <label>Email</label>
-        <input v-model="form.email" type="email" placeholder="example@mail.com" />
-      </div>
-
-      <div class="form-group">
-        <label>Пароль</label>
-        <input v-model="form.password" type="password" placeholder="••••••••" />
-      </div>
-
-      <p v-if="error.message" class="error-text">{{ error.message }}</p>
-
-      <button @click="handleSubmit" class="btn-primary">Войти в сад</button>
+  <div class="auth-wrapper">
+    <div class="habit-card-base auth-container">
+      <button class="back-link" @click="router.push('/')">← Назад</button>
+      <h2>Вход</h2>
       
-      <div class="auth-footer">
-        <span>Нет аккаунта?</span>
-        <RouterLink :to="{ name: 'register' }">Создать сад</RouterLink>
+      <div class="auth-form">
+        <div class="input-group">
+          <input v-model="email" type="text" placeholder="Email" @input="clearError" />
+        </div>
+        <div class="input-group">
+          <input v-model="password" type="password" placeholder="Пароль" @input="clearError" />
+        </div>
+        
+        <!-- Твоя логика вывода ошибок -->
+        <div v-if="errorMessage" class="error-box">
+          {{ errorMessage }}
+        </div>
+        
+        <button class="main-button full-width" @click="handleLogin">Войти</button>
       </div>
     </div>
   </div>
 </template>
 
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const email = ref('')
+const password = ref('')
+const errorMessage = ref('')
+
+const clearError = () => errorMessage.value = ''
+
+const handleLogin = () => {
+  // Твоя логика регистрации/входа
+  const users = JSON.parse(localStorage.getItem('users') || '[]')
+  const user = users.find(u => u.email === email.value && u.password === password.value)
+
+  if (user) {
+    localStorage.setItem('userToken', 'active')
+    localStorage.setItem('currentUser', JSON.stringify(user))
+    router.push('/select-habit')
+  } else {
+    // Выводим твою ошибку в интерфейс
+    errorMessage.value = 'Аккаунт не найден или неверный пароль. Проверьте данные или зарегистрируйтесь.'
+  }
+}
+</script>
+
 <style scoped>
-/* Используем твои переменные из style.css */
-.auth-card {
-  max-width: 400px;
-  margin: 60px auto;
-  padding: 40px;
-  background: var(--surface-2, #F5F0E1);
-  border-radius: var(--radius-lg, 32px);
-  text-align: center;
+/* Стили те же, что были, плюс ошибка: */
+.error-box {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  border: 1px solid #fecaca;
 }
-.auth-subtitle {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  margin-bottom: 24px;
+.back-link {
+  background: none; border: none; color: var(--text-secondary);
+  cursor: pointer; float: left; margin-bottom: 10px;
 }
-.error-text { color: #D32F2F; font-size: 0.8rem; margin-bottom: 16px; }
+.auth-wrapper { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
+.auth-container { max-width: 380px; width: 100%; text-align: center; }
+.input-group { margin-bottom: 12px; }
+input { width: 100%; padding: 14px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); box-sizing: border-box; }
+.full-width { width: 100%; margin-top: 10px; }
 </style>
