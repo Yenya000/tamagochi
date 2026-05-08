@@ -1,100 +1,81 @@
 <template>
   <div class="selection-wrapper">
-    <div class="habit-card-base selection-container">
-      <h1>Выбор пути</h1>
-      <p class="subtitle">Какую привычку будем превращать в дерево?</p>
+    <div class="habit-card-base settings-container">
+      <h2>Настройка целей 🌱</h2>
+      <p class="subtitle">Настрой параметры, чтобы дерево росло правильно</p>
 
-      <div class="habit-grid">
-        <div 
-          v-for="habit in availableHabits" 
-          :key="habit.id"
-          :class="['grid-item', { active: selectedHabitId === habit.id }]"
-          @click="selectedHabitId = habit.id"
-        >
-          <div class="habit-icon">{{ habit.icon }}</div>
-          <span class="habit-name">{{ habit.name }}</span>
+      <div class="goals-list">
+        <div class="goal-item glass-card">
+          <div class="goal-header">
+            <span>💧 Вода</span>
+            <input type="checkbox" v-model="goals.water.active">
+          </div>
+          <div v-if="goals.water.active" class="goal-controls">
+            <select v-model="goals.water.unit">
+              <option value="стаканов">Стаканы</option>
+              <option value="литров">Литры</option>
+            </select>
+            <input type="number" v-model="goals.water.amount" min="1" max="20">
+          </div>
+        </div>
+
+        <div class="goal-item glass-card">
+          <div class="goal-header">
+            <span>🏃 Зарядка</span>
+            <input type="checkbox" v-model="goals.exercise.active">
+          </div>
+          <div v-if="goals.exercise.active" class="goal-controls">
+            <span>План: {{ goals.exercise.minutes }} мин.</span>
+            <small>(Растет каждые 5 дней)</small>
+          </div>
+        </div>
+
+        <div class="goal-item glass-card">
+          <div class="goal-header">
+            <span>📚 Чтение</span>
+            <input type="checkbox" v-model="goals.reading.active">
+          </div>
+          <div v-if="goals.reading.active" class="goal-controls">
+            <span>Цель: {{ goals.reading.pages }} стр.</span>
+            <input type="checkbox" v-model="goals.reading.autoIncrease"> 
+            <small>+10 стр. в неделю</small>
+          </div>
         </div>
       </div>
 
-      <button 
-        class="main-button full-width" 
-        :disabled="!selectedHabitId"
-        @click="confirmSelection"
-      >
-        Начать рост
-      </button>
+      <button class="main-button full-width" @click="saveGoals">Сохранить и начать</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const selectedHabitId = ref(null)
+const goals = ref({
+  water: { active: true, amount: 8, unit: 'стаканов' },
+  exercise: { active: true, minutes: 5, daysPassed: 0 },
+  reading: { active: true, pages: 20, autoIncrease: true, daysInWeek: 0 }
+})
 
-const availableHabits = [
-  { id: 1, name: 'Вода', icon: '💧' },
-  { id: 2, name: 'Спорт', icon: '⚡' },
-  { id: 3, name: 'Сон', icon: '🌙' },
-  { id: 4, name: 'Код', icon: '💻' }
-]
+onMounted(() => {
+  const saved = localStorage.getItem('userGoals')
+  if (saved) goals.value = JSON.parse(saved)
+})
 
-const confirmSelection = () => {
-  const habit = availableHabits.find(h => h.id === selectedHabitId.value)
-  localStorage.setItem('userHabit', JSON.stringify(habit))
-  router.push({ name: 'home' })
+const saveGoals = () => {
+  localStorage.setItem('userGoals', JSON.stringify(goals.value))
+  router.push('/home')
 }
 </script>
 
 <style scoped>
-.selection-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 90vh;
-  padding: 20px;
-}
-.selection-container {
-  max-width: 400px;
-  width: 100%;
-  text-align: center;
-}
-.subtitle {
-  color: var(--text-secondary);
-  margin-bottom: 32px;
-}
-.habit-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 32px;
-}
-.grid-item {
-  background: var(--bg-color);
-  border: 2px solid transparent;
-  border-radius: 20px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.grid-item:hover {
-  transform: scale(1.02);
-}
-.grid-item.active {
-  border-color: var(--accent-color);
-  background: var(--card-bg);
-}
-.habit-icon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-}
-.habit-name {
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-.full-width {
-  width: 100%;
-}
+.settings-container { max-width: 500px; margin: 0 auto; }
+.goal-item { margin-bottom: 15px; text-align: left; }
+.goal-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
+.goal-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+input[type="number"] { width: 60px; padding: 5px; border-radius: 8px; border: 1px solid var(--border-color); }
+select { padding: 5px; border-radius: 8px; }
+.subtitle { color: var(--text-secondary); margin-bottom: 20px; }
 </style>
