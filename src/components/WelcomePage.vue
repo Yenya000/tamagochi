@@ -26,10 +26,10 @@ const router = useRouter()
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 85vh; /* Чуть уменьшила, чтобы не прилипало к краям */
+  min-height: 85vh; 
 }
 
-/* Логическое окно по твоему стилю */
+/* Логическое окно */
 .logic-block {
   background-color: #0a0a0a;
   border-top: 1px solid #1a1a1a;

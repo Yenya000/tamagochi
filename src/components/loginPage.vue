@@ -10,6 +10,11 @@
 
       <h2 class="auth-title">Вход</h2>
       
+      <!-- Уведомление -->
+      <div v-if="notification.show" class="notification" :class="notification.type">
+        {{ notification.message }}
+      </div>
+      
       <form 
         @submit.prevent="handleLogin" 
         class="auth-form"
@@ -53,28 +58,32 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-// Импортируем функцию входа и стор
 import { authStore, login as authLogin } from '../composables/useAuth'
 
 const router = useRouter()
 
-// Переменные для полей ввода
+// ===== 1. ПОЛЯ ВВОДА =====
 const emailField = ref('')
 const passwordField = ref('')
 
+// ===== 2. УВЕДОМЛЕНИЯ =====
+const notification = ref({ show: false, message: '', type: '' })
+
+function showNotification(message, type = 'error') {
+  notification.value = { show: true, message, type }
+  setTimeout(() => {
+    notification.value.show = false
+  }, 2000)
+}
+
+// ===== 3. ОБРАБОТКА ВХОДА =====
 const handleLogin = () => {
-  // Передаем значения из рефов в функцию логики
-  const success = authLogin(
-    emailField.value, 
-    passwordField.value
-  )
+  const success = authLogin(emailField.value, passwordField.value)
 
   if (success) {
-    // Если всё ок — летим на главную
     router.push('/home')
   } else {
-    // Если нет — ругаемся
-    alert('Неверный логин или пароль. Проверь данные или зарегистрируйся заново.')
+    showNotification('Неверный логин или пароль. Проверь данные или зарегистрируйся заново.')
   }
 }
 </script>
@@ -189,5 +198,34 @@ const handleLogin = () => {
   color: #34c759;
   text-decoration: none;
   font-weight: 600;
+}
+
+.notification {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 30px;
+  background-color: #1a1a1a;
+  color: #fff;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+.notification.error {
+  background-color: #ff3b30;
+  color: white;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 </style>

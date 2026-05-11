@@ -1,5 +1,6 @@
 import { authStore } from '../composables/useAuth'
 import { createRouter, createWebHashHistory } from 'vue-router'
+
 const routes = [
   {
     path: '/',
@@ -42,7 +43,6 @@ const routes = [
     path: '/shop',
     name: 'shop',
     component: function() {
-      // ПРОВЕРЬ ЭТО НАЗВАНИЕ! Если файл Shop.vue, то убери Page
       return import('../components/ShopPage.vue')
     },
     meta: { requiresAuth: true }
@@ -50,7 +50,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),  // <-- это ВАЖНО
+  history: createWebHashHistory(),  // <-- ЭТО ДЛЯ GITHUB PAGES
   routes
 })
 
@@ -67,7 +67,6 @@ router.beforeEach(function(to, from, next) {
     return next({ name: 'home' })
   } 
 
-  // 3. Во всех остальных случаях (включая Магазин и Выбор целей) -> пропускаем
   next()
 })
 
