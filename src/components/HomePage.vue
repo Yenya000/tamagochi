@@ -11,12 +11,10 @@
       </div>
     </div>
 
-    <!-- Уведомление -->
     <div v-if="notification.show" class="notification" :class="notification.type">
       {{ notification.message }}
     </div>
 
-    <!-- Прогресс цикла -->
     <div v-if="cycleProgress.totalDays > 0 && !user?.isDead" class="cycle-progress">
       <div class="progress-header">
         <span class="progress-label">
@@ -110,12 +108,8 @@
     </div>
 
     <div v-if="!user?.isDead" class="actions-grid">
-      <router-link to="/shop" class="nav-btn">
-        🛒 Магазин
-      </router-link>
-      <router-link to="/select-habit" class="nav-btn">
-        ⚙️ Настройки
-      </router-link>
+      <router-link to="/shop" class="nav-btn">🛒 Магазин</router-link>
+      <router-link to="/select-habit" class="nav-btn">⚙️ Настройки</router-link>
     </div>
   </div>
 </template>
@@ -137,7 +131,7 @@ import {
 const router = useRouter()
 const user = authStore.user
 
-// ===== 1. УВЕДОМЛЕНИЯ (замена alert) =====
+// ===== УВЕДОМЛЕНИЯ =====
 const notification = ref({ show: false, message: '', type: '' })
 
 function showNotification(message, type = 'success') {
@@ -147,23 +141,23 @@ function showNotification(message, type = 'success') {
   }, 2000)
 }
 
-// ===== 2. ВЫЧИСЛЯЕМЫЕ ДАННЫЕ =====
+// ===== ВЫЧИСЛЯЕМЫЕ ДАННЫЕ =====
 const habits = computed(() => user.value?.habits || [])
 const completedToday = computed(() => habits.value.filter(h => h.completed).length)
 const allHabitsDone = computed(() => {
   return habits.value.length > 0 && completedToday.value === habits.value.length
 })
 
-// ===== 3. ПРОГРЕСС ЦИКЛА =====
+// ===== ПРОГРЕСС ЦИКЛА =====
 const cycleProgress = ref({ currentDay: 0, totalDays: 0, progress: 0 })
 let cycleCompletedFlag = false
 
-// ===== 4. ПРОВЕРКА НАЛИЧИЯ ЛЕЙКИ =====
+// ===== ПРОВЕРКА НАЛИЧИЯ ЛЕЙКИ =====
 const hasWateringCan = computed(() => {
   return user.value?.inventory?.includes('watering_can')
 })
 
-// ===== 5. ЭМОДЗИ ДЕРЕВА =====
+// ===== ЭМОДЗИ ДЕРЕВА =====
 const treeEmoji = computed(() => {
   let emoji = '🌱'
   
@@ -182,7 +176,7 @@ const treeEmoji = computed(() => {
   return emoji
 })
 
-// ===== 6. СООБЩЕНИЕ ДЕРЕВА =====
+// ===== СООБЩЕНИЕ ДЕРЕВА =====
 const treeMessage = computed(() => {
   let message = '🌱 Продолжай выполнять привычки!'
   
@@ -199,7 +193,7 @@ const treeMessage = computed(() => {
   return message
 })
 
-// ===== 7. СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ =====
+// ===== СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ =====
 function saveUser() {
   if (!user.value) return
   
@@ -214,7 +208,7 @@ function saveUser() {
   }
 }
 
-// ===== 8. ОБНОВЛЕНИЕ ПРОГРЕССА ЦИКЛА =====
+// ===== ОБНОВЛЕНИЕ ПРОГРЕССА ЦИКЛА =====
 function updateCycleProgress() {
   cycleProgress.value = getCycleProgress()
   
@@ -232,14 +226,9 @@ function updateCycleProgress() {
   }
 }
 
-// ===== 9. ПРОВЕРКА НОВОГО ДНЯ =====
+// ===== ПРОВЕРКА НОВОГО ДНЯ (ПРОСТОЙ СЧЕТЧИК) =====
 function checkNewDay() {
-  let needUpdate = false
-  let daysPassed = 0
-  
-  if (!user.value) {
-    return false
-  }
+  if (!user.value) return false
   
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -253,42 +242,56 @@ function checkNewDay() {
   }
   
   lastLogin.setHours(0, 0, 0, 0)
+  const daysPassed = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24))
   
-  daysPassed = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24))
+  if (daysPassed === 0) return false
   
-  if (daysPassed !== 0) {
-    needUpdate = true
-    
-    // Сброс привычек на новый день
-    if (user.value.habits) {
-      user.value.habits.forEach(h => {
-        h.completed = false
-      })
-    }
-    
-    // Логика увядания/смерти
-    if (daysPassed === 1) {
-      if (!user.value.isDead) {
-        user.value.isWilted = true
-      }
-    }
-    else if (daysPassed >= 2) {
-      user.value.isWilted = false
-      user.value.isDead = true
-    }
-    
-    user.value.lastLogin = today.toISOString()
+  // === ПРОСТАЯ ЛОГИКА СО СЧЕТЧИКОМ ===
+  // Проверяем, были ли выполнены привычки в последний день
+  const wasLastDayCompleted = habits.value.some(h => h.completed === true)
+  
+  let missedDays = user.value.missedDays || 0
+  
+  if (wasLastDayCompleted) {
+    // Отметил привычки - счетчик сбрасывается
+    missedDays = 0
+  } else {
+    // Не отметил - счетчик увеличивается
+    missedDays = missedDays + daysPassed
   }
   
-  if (needUpdate) {
-    saveUser()
+  user.value.missedDays = missedDays
+  
+  // Обновляем состояние дерева по счетчику
+  if (missedDays === 0) {
+    user.value.isWilted = false
+    user.value.isDead = false
+  } 
+  else if (missedDays === 1) {
+    user.value.isWilted = true
+    user.value.isDead = false
+    showNotification('🥀 Дерево увяло! Вы пропустили день.', 'error')
+  } 
+  else if (missedDays >= 2) {
+    user.value.isWilted = false
+    user.value.isDead = true
+    showNotification('💀 Дерево погибло! Вы пропустили 2 дня подряд.', 'error')
   }
+  
+  // Сброс привычек на новый день
+  if (user.value.habits) {
+    user.value.habits.forEach(h => {
+      h.completed = false
+    })
+  }
+  
+  user.value.lastLogin = today.toISOString()
+  saveUser()
   
   return daysPassed > 0
 }
 
-// ===== 10. ОТМЕТКА ПРИВЫЧКИ =====
-// ВАЖНО: за каждую привычку начисляется 10 кристаллов (в completeHabit)
+// ===== ОТМЕТКА ПРИВЫЧКИ =====
 const handleToggle = (habitName) => {
   let errorMessage = ''
   
@@ -302,12 +305,11 @@ const handleToggle = (habitName) => {
     errorMessage = 'Дерево увяло! Используй лейку из магазина.'
   }
   else {
-    completeHabit(habitName)  // Здесь начисляются +10 за каждую привычку
+    completeHabit(habitName)
     
     if (allHabitsDone.value) {
-      completeDay()  // Здесь НЕТ начисления кристаллов, только рост дерева
+      completeDay()
       updateCycleProgress()
-      // Показываем общее количество кристаллов, а не "10"
       showNotification(`🎉 Все привычки выполнены! Дерево подросло! Всего кристаллов: ${user.value.crystals}`, 'success')
     }
   }
@@ -317,7 +319,7 @@ const handleToggle = (habitName) => {
   }
 }
 
-// ===== 11. ПОЛИВ ДЕРЕВА =====
+// ===== ПОЛИВ ДЕРЕВА =====
 const handleWatering = () => {
   if (!user.value) {
     showNotification('Пользователь не найден', 'error')
@@ -327,7 +329,15 @@ const handleWatering = () => {
   }
   else {
     useWateringCan()
+    
+    // После полива можно либо отметить привычки, либо нет
+    // Счетчик missedDays будет обновлен при следующей проверке checkNewDay()
     user.value.isWilted = false
+    user.value.isDead = false
+    
+    // НЕ сбрасываем missedDays здесь, он сбросится только когда пользователь отметит привычки
+    // Если пользователь полил, но не отметил - missedDays останется 1
+    
     user.value.lastLogin = new Date().toISOString()
     
     if (user.value.habits) {
@@ -337,61 +347,53 @@ const handleWatering = () => {
     }
     
     saveUser()
-    showNotification('🌿 Дерево ожило! Продолжайте выполнять привычки!', 'success')
+    showNotification('🌿 Дерево ожило! Выполните привычки, чтобы оно не увяло снова!', 'success')
   }
 }
 
-// ===== 12. СБРОС И ПЕРЕЗАПУСК ПОСЛЕ СМЕРТИ =====
+// ===== СБРОС ПОСЛЕ СМЕРТИ =====
 const resetAndRestart = () => {
   if (!user.value) return
   
   user.value.isWilted = false
   user.value.isDead = false
+  user.value.missedDays = 0
   user.value.score = 0
   user.value.treeStage = 1
   user.value.lastLogin = new Date().toISOString()
+  
+  if (user.value.habits) {
+    user.value.habits.forEach(h => {
+      h.completed = false
+    })
+  }
   
   saveUser()
   router.push('/select-habit')
 }
 
-// ===== 13. ЖИЗНЕННЫЙ ЦИКЛ =====
+// ===== ЖИЗНЕННЫЙ ЦИКЛ =====
 onMounted(() => {
   if (!user.value) {
     router.push('/login')
     return
   }
   
-  // Проверка смерти при загрузке
-  const lastLogin = user.value.lastLogin ? new Date(user.value.lastLogin) : null
-  const today = new Date()
-  
-  if (lastLogin) {
-    const diffDays = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays >= 2 && !user.value.isDead) {
-      user.value.isDead = true
-      user.value.isWilted = false
-      saveUser()
-    }
-    else if (diffDays === 1 && !user.value.isWilted && !user.value.isDead) {
-      user.value.isWilted = true
-      saveUser()
-    }
+  // Инициализация missedDays
+  if (user.value.missedDays === undefined) {
+    user.value.missedDays = 0
   }
+  
+  // Проверка нового дня
+  checkNewDay()
   
   // Если нет привычек - на выбор целей
-  let hasNoHabits = false
-  
-  if (!user.value.habits || user.value.habits.length === 0) {
-    hasNoHabits = true
-  }
+  const hasNoHabits = !user.value.habits || user.value.habits.length === 0
   
   if (!user.value.isDead && hasNoHabits) {
     router.push('/select-habit')
   }
   else if (!user.value.isDead) {
-    checkNewDay()
     checkCycleStatus()
     updateCycleProgress()
   }
@@ -399,7 +401,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ... твои стили ... */
+/* ... твои стили остаются без изменений ... */
 .home-container {
   max-width: 600px;
   margin: 0 auto;

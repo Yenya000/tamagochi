@@ -8,8 +8,8 @@ const notificationType = ref('error')
 export const authStore = {
   user: user,
   isLoggedIn: computed(() => !!user.value),
-  notificationMessage: notificationMessage,
-  notificationType: notificationType
+  notificationMessage: notificationMessage,  // <-- ДОБАВИТЬ
+  notificationType: notificationType         // <-- ДОБАВИТЬ
 }
 
 // ===== ПРОВЕРКА НА ОТСУТСТВИЕ РУССКИХ БУКВ =====
@@ -17,11 +17,20 @@ function hasNoRussianLetters(str) {
   return !/[а-яА-ЯёЁ]/.test(str)
 }
 
-// ===== ВАЛИДАЦИЯ ПОЛЕЙ =====
+// ===== ПОКАЗ УВЕДОМЛЕНИЯ =====
+function showNotification(message, type = 'error') {
+  notificationMessage.value = message
+  notificationType.value = type
+  setTimeout(() => {
+    notificationMessage.value = ''
+  }, 3000)
+}
+
+// ===== ВАЛИДАЦИЯ =====
 export function validateEmail(email) {
   if (!email) return 'Введите email'
   if (!hasNoRussianLetters(email)) return 'Email не должен содержать русские буквы'
-  if (!email.includes('@')) return 'Введите корректный email (должен содержать @)'
+  if (!email.includes('@')) return 'Введите корректный email'
   if (email.length < 5) return 'Email слишком короткий'
   return ''
 }
@@ -39,24 +48,36 @@ export function validateUsername(username) {
   return ''
 }
 
-// ===== ПОИСК ПОЛЬЗОВАТЕЛЯ =====
-function findUserByEmail(email) {
+// ===== ВХОД =====
+export function login(email, password) {
+  const emailError = validateEmail(email)
+  const passError = validatePassword(password)
+  
+  if (emailError) {
+    showNotification(emailError)
+    return false
+  }
+  if (passError) {
+    showNotification(passError)
+    return false
+  }
+  
   const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
-  return allUsers.find(u => u.email === email)
-}
-
-// ===== ПОКАЗ УВЕДОМЛЕНИЯ =====
-function showNotification(message, type = 'error') {
-  notificationMessage.value = message
-  notificationType.value = type
-  setTimeout(() => {
-    notificationMessage.value = ''
-  }, 3000)
+  const foundUser = allUsers.find(u => u.email === email && u.password === password)
+  
+  if (foundUser) {
+    user.value = foundUser
+    localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
+    showNotification('Вход выполнен успешно!', 'success')
+    return true
+  }
+  
+  showNotification('Неверный email или пароль')
+  return false
 }
 
 // ===== РЕГИСТРАЦИЯ =====
 export function register(email, password, username) {
-  // Валидация
   const emailError = validateEmail(email)
   const passError = validatePassword(password)
   const nameError = validateUsername(username)
@@ -74,13 +95,14 @@ export function register(email, password, username) {
     return false
   }
   
-  // Проверка на существующий email
-  if (findUserByEmail(email)) {
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  const userExists = allUsers.some(u => u.email === email)
+  
+  if (userExists) {
     showNotification('Пользователь с таким email уже существует!')
     return false
   }
   
-  // Создание пользователя
   const newUser = {
     id: Date.now(),
     username: username,
@@ -89,6 +111,7 @@ export function register(email, password, username) {
     score: 0,
     treeStage: 1,
     activeDays: 0,
+    missedDays: 0,
     goalDays: 0,
     goalStartDate: null,
     lastLogin: new Date().toISOString(),
@@ -109,7 +132,6 @@ export function register(email, password, username) {
     }
   }
 
-  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
   allUsers.push(newUser)
   localStorage.setItem('habit_users', JSON.stringify(allUsers))
   
@@ -120,36 +142,9 @@ export function register(email, password, username) {
   return true
 }
 
-// ===== ВХОД =====
-export function login(email, password) {
-  // Валидация
-  const emailError = validateEmail(email)
-  const passError = validatePassword(password)
-  
-  if (emailError) {
-    showNotification(emailError)
-    return false
-  }
-  if (passError) {
-    showNotification(passError)
-    return false
-  }
-  
-  const foundUser = findUserByEmail(email)
-  
-  if (foundUser && foundUser.password === password) {
-    user.value = foundUser
-    localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
-    showNotification('Вход выполнен успешно!', 'success')
-    return true
-  } else {
-    showNotification('Неверный email или пароль')
-    return false
-  }
-}
-
 // ===== ВЫХОД =====
 export function logout() {
   user.value = null
   localStorage.removeItem('tamagochi_user')
+  window.location.href = '/#/login'
 }
