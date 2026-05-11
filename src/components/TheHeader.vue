@@ -32,7 +32,6 @@ const handleLogoClick = () => {
   const user = authStore.user.value
   let hasHabits = false
 
-  // Проверяем, выбраны ли привычки (есть ли они в массиве)
   if (user && user.habits && user.habits.length > 0) {
     hasHabits = true
   }

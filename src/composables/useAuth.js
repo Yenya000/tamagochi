@@ -8,8 +8,8 @@ const notificationType = ref('error')
 export const authStore = {
   user: user,
   isLoggedIn: computed(() => !!user.value),
-  notificationMessage: notificationMessage,  // <-- ДОБАВИТЬ
-  notificationType: notificationType         // <-- ДОБАВИТЬ
+  notificationMessage: notificationMessage,
+  notificationType: notificationType
 }
 
 // ===== ПРОВЕРКА НА ОТСУТСТВИЕ РУССКИХ БУКВ =====
@@ -142,9 +142,8 @@ export function register(email, password, username) {
   return true
 }
 
-// ===== ВЫХОД =====
+// ===== ВЫХОД (ИСПРАВЛЕН) =====
 export function logout() {
   user.value = null
   localStorage.removeItem('tamagochi_user')
-  window.location.href = '/#/login'
 }
