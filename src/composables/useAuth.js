@@ -1,88 +1,86 @@
 import { ref, computed } from 'vue'
 
-// ===== 1. СОСТОЯНИЕ ПОЛЬЗОВАТЕЛЯ =====
+// ===== СОСТОЯНИЕ =====
 const user = ref(JSON.parse(localStorage.getItem('tamagochi_user') || 'null'))
+const notificationMessage = ref('')
+const notificationType = ref('error')
 
 export const authStore = {
   user: user,
-  isLoggedIn: computed(() => !!user.value)
+  isLoggedIn: computed(() => !!user.value),
+  notificationMessage: notificationMessage,
+  notificationType: notificationType
 }
 
-// ===== 2. ПРОВЕРКА НА АНГЛИЙСКИЕ БУКВЫ =====
-function isEnglishOnly(str) {
-  return /^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]+$/.test(str)
+// ===== ПРОВЕРКА НА ОТСУТСТВИЕ РУССКИХ БУКВ =====
+function hasNoRussianLetters(str) {
+  return !/[а-яА-ЯёЁ]/.test(str)
 }
 
-// ===== 3. ГЛОБАЛЬНОЕ УВЕДОМЛЕНИЕ =====
-let globalNotificationCallback = null
-
-export function setNotificationCallback(callback) {
-  globalNotificationCallback = callback
+// ===== ВАЛИДАЦИЯ ПОЛЕЙ =====
+export function validateEmail(email) {
+  if (!email) return 'Введите email'
+  if (!hasNoRussianLetters(email)) return 'Email не должен содержать русские буквы'
+  if (!email.includes('@')) return 'Введите корректный email (должен содержать @)'
+  if (email.length < 5) return 'Email слишком короткий'
+  return ''
 }
 
+export function validatePassword(password) {
+  if (!password) return 'Введите пароль'
+  if (!hasNoRussianLetters(password)) return 'Пароль не должен содержать русские буквы'
+  if (password.length < 4) return 'Пароль должен быть не менее 4 символов'
+  return ''
+}
+
+export function validateUsername(username) {
+  if (!username) return 'Введите имя'
+  if (!/^[А-ЯЁ][а-яё]+$/.test(username)) return 'Имя должно быть на русском, с большой буквы'
+  return ''
+}
+
+// ===== ПОИСК ПОЛЬЗОВАТЕЛЯ =====
+function findUserByEmail(email) {
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  return allUsers.find(u => u.email === email)
+}
+
+// ===== ПОКАЗ УВЕДОМЛЕНИЯ =====
 function showNotification(message, type = 'error') {
-  if (globalNotificationCallback) {
-    globalNotificationCallback(message, type)
-  } else {
-    console.log(message)
-  }
+  notificationMessage.value = message
+  notificationType.value = type
+  setTimeout(() => {
+    notificationMessage.value = ''
+  }, 3000)
 }
 
-// ===== 4. ФУНКЦИЯ ВХОДА =====
-export function login(email, password) {
-  // Проверка на английские буквы
-  if (!isEnglishOnly(email) || !isEnglishOnly(password)) {
-    showNotification('Email и пароль должны содержать только английские буквы, цифры и разрешённые символы!')
-    return false
-  }
-  
-  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
-  
-  for (let i = 0; i < allUsers.length; i++) {
-    const foundUser = allUsers[i]
-    
-    if (foundUser.email === email && foundUser.password === password) {
-      user.value = foundUser
-      localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
-      return true
-    }
-  }
-  
-  showNotification('Неверный логин или пароль')
-  return false
-}
-
-// ===== 5. ФУНКЦИЯ ВЫХОДА =====
-export function logout() {
-  user.value = null
-  localStorage.removeItem('tamagochi_user')
-  window.location.href = '/#/login'
-}
-
-// ===== 6. ФУНКЦИЯ РЕГИСТРАЦИИ =====
+// ===== РЕГИСТРАЦИЯ =====
 export function register(email, password, username) {
-  // Проверка на английские буквы
-  if (!isEnglishOnly(email) || !isEnglishOnly(password)) {
-    showNotification('Email и пароль должны содержать только английские буквы, цифры и разрешённые символы!')
+  // Валидация
+  const emailError = validateEmail(email)
+  const passError = validatePassword(password)
+  const nameError = validateUsername(username)
+  
+  if (emailError) {
+    showNotification(emailError)
     return false
   }
-  
-  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  if (passError) {
+    showNotification(passError)
+    return false
+  }
+  if (nameError) {
+    showNotification(nameError)
+    return false
+  }
   
   // Проверка на существующий email
-  let emailExists = false
-  for (let i = 0; i < allUsers.length; i++) {
-    if (allUsers[i].email === email) {
-      emailExists = true
-    }
-  }
-  
-  if (emailExists) {
+  if (findUserByEmail(email)) {
     showNotification('Пользователь с таким email уже существует!')
     return false
   }
   
-  // Создание нового пользователя
+  // Создание пользователя
   const newUser = {
     id: Date.now(),
     username: username,
@@ -111,6 +109,7 @@ export function register(email, password, username) {
     }
   }
 
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
   allUsers.push(newUser)
   localStorage.setItem('habit_users', JSON.stringify(allUsers))
   
@@ -119,4 +118,38 @@ export function register(email, password, username) {
   
   showNotification('Регистрация успешна!', 'success')
   return true
+}
+
+// ===== ВХОД =====
+export function login(email, password) {
+  // Валидация
+  const emailError = validateEmail(email)
+  const passError = validatePassword(password)
+  
+  if (emailError) {
+    showNotification(emailError)
+    return false
+  }
+  if (passError) {
+    showNotification(passError)
+    return false
+  }
+  
+  const foundUser = findUserByEmail(email)
+  
+  if (foundUser && foundUser.password === password) {
+    user.value = foundUser
+    localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
+    showNotification('Вход выполнен успешно!', 'success')
+    return true
+  } else {
+    showNotification('Неверный email или пароль')
+    return false
+  }
+}
+
+// ===== ВЫХОД =====
+export function logout() {
+  user.value = null
+  localStorage.removeItem('tamagochi_user')
 }
