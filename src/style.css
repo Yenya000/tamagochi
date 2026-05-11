@@ -1,24 +1,23 @@
 :root {
-  /* Светлая тема */
-  --bg-color: #f4f7f6;
+  --bg-color: #f0f4f3;
   --card-bg: #ffffff;
-  --text-main: #1a1a1a;
-  --text-secondary: #757575;
-  --border-color: rgba(0, 0, 0, 0.05);
-  --accent-color: #4ade80; /* Сочный зеленый для Тамагочи */
-  --accent-hover: #22c55e;
-  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+  --text-main: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --accent-color: #34c759;
+  --accent-hover: #28a745;
+  --focus-shadow: 0 0 0 4px rgba(52, 199, 89, 0.2);
+  --shadow-md: 0 10px 20px rgba(0,0,0,0.08);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Темная тема */
-    --bg-color: #0f172a;
-    --card-bg: #1e293b;
-    --text-main: #f8fafc;
-    --text-secondary: #94a3b8;
-    --border-color: rgba(255, 255, 255, 0.1);
-    --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    --bg-color: #161617;
+    --card-bg: #1c1c1e;
+    --text-main: #f5f5f7;
+    --text-secondary: #86868b;
+    --border-color: rgba(255, 255, 255, 0.12);
   }
 }
 
@@ -26,37 +25,51 @@ body {
   margin: 0;
   background-color: var(--bg-color);
   color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: all 0.3s ease;
+  font-family: -apple-system, system-ui, sans-serif;
 }
 
-/* Общий стиль для округлых карточек */
+.page-container {
+  padding-top: 90px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Всегда центрируем контент */
+  box-sizing: border-box;
+}
+
 .habit-card-base {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 24px; /* Мягкое скругление */
-  box-shadow: var(--shadow);
-  padding: 24px;
+  border-radius: 32px;
+  box-shadow: var(--shadow-md);
+  padding: 40px;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
 }
 
+/* Кнопки и инпуты как ты просила — актуальный стиль */
 .main-button {
-  background-color: var(--accent-color);
-  color: #fff;
+  background: var(--accent-color);
+  color: white;
   border: none;
-  border-radius: 16px;
-  padding: 14px 24px;
+  border-radius: 18px;
+  padding: 16px 32px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
+  transition: var(--transition);
 }
 
-.main-button:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-2px);
-}
+.main-button:hover { background: var(--accent-hover); transform: translateY(-2px); }
 
-.main-button:disabled {
-  background-color: var(--text-secondary);
-  opacity: 0.5;
-  cursor: not-allowed;
+input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--text-main);
+  box-sizing: border-box;
+  outline: none;
 }
+input:focus { border-color: var(--accent-color); box-shadow: var(--focus-shadow); }

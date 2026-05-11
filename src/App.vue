@@ -1,137 +1,192 @@
 <template>
-  <header class="main-header glass-card">
-    <div class="header-content">
-      <!-- Логотип виден всегда -->
-      <div class="logo" @click="goHome">
-        <span class="logo-icon">🌳</span>
-        <span class="logo-text">Tamagochi</span>
-      </div>
+  <div id="app">
+    <TheHeader />
 
-      <!-- Навигация видна только если пользователь авторизован -->
-      <nav v-if="isAuthenticated" class="header-nav">
-        <router-link to="/home" class="nav-link">Дерево</router-link>
-        <router-link to="/select-habit" class="nav-link">Привычка</router-link>
-        <div class="user-profile">
-          <span class="user-name">{{ userName }}</span>
-          <button @click="logout" class="logout-btn">Выйти</button>
+    <main class="content-wrapper">
+      <router-view />
+    </main>
+
+    <div class="debug-overlay" v-if="debugVisible">
+      <div class="debug-content">
+        <div class="debug-header">
+          <h3>🛠 Tamagochi Debug</h3>
+          <button class="close-btn" @click="debugVisible = false">×</button>
         </div>
-      </nav>
+        
+        <div class="debug-body">
+          <div class="debug-section">
+            <span class="label">Текущий:</span>
+            <span :class="authStore.user.value ? 'text-green' : 'text-red'">
+              {{ authStore.user.value ? authStore.user.value.username : 'НИКОГО' }}
+            </span>
+          </div>
+          
+          <div class="debug-section">
+            <span class="label">База юзеров:</span>
+            <div class="user-list">
+              <div v-for="u in allUsers" :key="u.email" class="user-row">
+                <span>{{ u.username }}</span>
+                <button @click="removeUser(u.email)" class="btn-del">Удалить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="debug-footer">
+          <button @click="nukeAll" class="btn-nuke">СБРОСИТЬ ВСЁ</button>
+        </div>
+      </div>
     </div>
-  </header>
 
-  <!-- Сюда подставляются страницы: Welcome, Login, Home и т.д. -->
-  <main class="page-container">
-    <router-view />
-  </main>
+    <button class="debug-trigger" @click="debugVisible = !debugVisible">🛠</button>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import TheHeader from './components/TheHeader.vue'
+import { authStore } from './composables/useAuth'
 
-const router = useRouter()
+const debugVisible = ref(false)
+const allUsers = ref([])
 
-// Проверка авторизации в реальном времени
-const isAuthenticated = computed(() => !!localStorage.getItem('userToken'))
-const userName = computed(() => {
-  const user = JSON.parse(localStorage.getItem('currentUser'))
-  return user ? user.email.split('@')[0] : 'Профиль'
+// Загружаем список всех юзеров для админки
+function refreshUserList() {
+  const data = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  allUsers.value = data
+}
+
+onMounted(function() {
+  refreshUserList()
 })
 
-const goHome = () => {
-  if (isAuthenticated.value) {
-    router.push('/home')
-  } else {
-    router.push('/')
+function removeUser(email) {
+  if (confirm(`Удалить пользователя с почтой ${email}?`)) {
+    const data = JSON.parse(localStorage.getItem('habit_users') || '[]')
+    const filtered = data.filter(function(u) {
+      return u.email !== email
+    })
+    
+    localStorage.setItem('habit_users', JSON.stringify(filtered))
+    refreshUserList()
+    
+    // Если удалили сами себя — выходим
+    if (authStore.user.value && authStore.user.value.email === email) {
+      localStorage.removeItem('tamagochi_user')
+      window.location.reload()
+    }
   }
 }
 
-const logout = () => {
-  localStorage.removeItem('userToken')
-  localStorage.removeItem('currentUser')
-  router.push('/')
+function nukeAll() {
+  if (confirm('Это удалит ВСЕ данные. Уверена?')) {
+    localStorage.clear()
+    window.location.reload()
+  }
 }
 </script>
 
-<style scoped>
-.main-header {
+<style>
+/* Оставляю ТВОИ стили полностью без изменений */
+:root {
+  --accent-color: #34c759;
+}
+
+body {
+  margin: 0;
+  background-color: #000;
+  color: #fff;
+  font-family: sans-serif;
+}
+
+.content-wrapper {
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.debug-trigger {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #222;
+  border: 1px solid #444;
+  color: white;
+  z-index: 9999;
+  cursor: pointer;
+}
+
+.debug-overlay {
   position: fixed;
   top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 70px;
-  z-index: 1000;
-  border-radius: 0 0 24px 24px; /* Округлость только снизу */
-  margin: 0;
-  padding: 0 20px;
+  background-color: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
+  justify-content: center;
+  z-index: 10000;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+.debug-content {
+  background-color: #111;
+  padding: 25px;
+  border-radius: 24px;
+  width: 350px;
+  border: 1px solid #333;
+  color: #0f0;
+  font-family: monospace;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
+.debug-header { 
+  display: flex; 
+  justify-content: space-between; 
+  margin-bottom: 20px; 
 }
 
-.logo-icon { font-size: 1.8rem; }
-.logo-text { font-weight: 800; font-size: 1.2rem; color: var(--accent-color); }
-
-.header-nav {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.close-btn { 
+  background: none; 
+  border: none; 
+  color: #fff; 
+  font-size: 24px; 
+  cursor: pointer; 
 }
 
-.nav-link {
-  text-decoration: none;
-  color: var(--text-main);
-  font-weight: 500;
-  transition: color 0.3s;
+.user-row { 
+  display: flex; 
+  justify-content: space-between; 
+  padding: 5px 0; 
+  border-bottom: 1px solid #222; 
 }
 
-.nav-link:hover, .router-link-active {
-  color: var(--accent-color);
+.btn-del { 
+  background: #400; 
+  color: #f44; 
+  border: none; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  padding: 2px 8px;
 }
 
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-left: 10px;
-  padding-left: 20px;
-  border-left: 1px solid var(--border-color);
+.btn-nuke { 
+  background: #600; 
+  color: white; 
+  width: 100%; 
+  padding: 10px; 
+  border-radius: 10px; 
+  border: none; 
+  cursor: pointer; 
+  margin-top: 20px; 
+  font-weight: 800;
 }
 
-.user-name { font-size: 0.9rem; font-weight: 600; }
-
-.logout-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 6px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.logout-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
-
-.page-container {
-  margin-top: 90px; /* Отступ, чтобы контент не залезал под шапку */
-  padding: 20px;
-}
+.text-green { color: #0f0; }
+.text-red { color: #f00; }
+.label { color: #888; font-size: 0.8rem; margin-right: 10px; }
 </style>

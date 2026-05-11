@@ -1,38 +1,75 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import WelcomePage from '../components/WelcomePage.vue' // Наша новая страница
-import LoginPage from '../components/LoginPage.vue'
-import RegisterPage from '../components/RegisterPage.vue'
-import HabitSelection from '../components/HabitSelection.vue'
-import HomePage from '../components/HomePage.vue'
+import { authStore } from '../composables/useAuth'
 
 const routes = [
-  { path: '/', name: 'welcome', component: WelcomePage }, // Главный вход
-  { path: '/login', name: 'login', component: LoginPage },
-  { path: '/register', name: 'register', component: RegisterPage },
-  { 
-    path: '/select-habit', 
-    name: 'select-habit', 
-    component: HabitSelection,
-    meta: { requiresAuth: true } 
+  {
+    path: '/',
+    name: 'welcome',
+    component: function() {
+      return import('../components/WelcomePage.vue')
+    }
   },
-  { 
-    path: '/home', 
-    name: 'home', 
-    component: HomePage,
-    meta: { requiresAuth: true } 
+  {
+    path: '/home',
+    name: 'home',
+    component: function() {
+      return import('../components/HomePage.vue')
+    },
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: function() {
+      return import('../components/LoginPage.vue')
+    }
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: function() {
+      return import('../components/RegisterPage.vue')
+    }
+  },
+  {
+    path: '/select-habit',
+    name: 'select-habit',
+    component: function() {
+      return import('../components/HabitSelection.vue')
+    },
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/shop',
+    name: 'shop',
+    component: function() {
+      // ПРОВЕРЬ ЭТО НАЗВАНИЕ! Если файл Shop.vue, то убери Page
+      return import('../components/ShopPage.vue')
+    },
+    meta: { requiresAuth: true }
   }
 ]
 
-export const router = createRouter({
+const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes: routes
 })
 
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('userToken')
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/login')
-  } else {
-    next()
-  }
+router.beforeEach(function(to, from, next) {
+  const isAuth = authStore.isLoggedIn.value
+  
+  // 1. Если идем на защищенную страницу без авторизации -> на логин
+  if (to.meta.requiresAuth === true && isAuth === false) {
+    return next({ name: 'login' })
+  } 
+  
+  // 2. Если залогинены и пытаемся зайти на логин/регистрацию -> на главную
+  if ((to.name === 'login' || to.name === 'register') && isAuth === true) {
+    return next({ name: 'home' })
+  } 
+
+  // 3. Во всех остальных случаях (включая Магазин и Выбор целей) -> пропускаем
+  next()
 })
+
+export default router
