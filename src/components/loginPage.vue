@@ -1,54 +1,32 @@
 <template>
   <div class="auth-container">
     <div class="auth-card">
-      <button 
-        class="back-button" 
-        @click="router.push('/')"
-      >
+      <button class="back-button" @click="router.push('/')">
         ← Назад
       </button>
 
       <h2 class="auth-title">Вход</h2>
-      
-      <!-- Уведомление -->
-      <div v-if="notification.show" class="notification" :class="notification.type">
-        {{ notification.message }}
+
+      <div v-if="authStore.notificationMessage.value" class="notification" :class="authStore.notificationType.value">
+        {{ authStore.notificationMessage.value }}
       </div>
-      
-      <form 
-        @submit.prevent="handleLogin" 
-        class="auth-form"
-      >
+
+      <form @submit.prevent="handleLogin" novalidate>
         <div class="input-group">
           <label>Email</label>
-          <input 
-            v-model="emailField" 
-            type="email" 
-            placeholder="Введите ваш email" 
-            required
-          />
+          <input v-model="email" type="text" placeholder="Введите ваш email" />
         </div>
 
         <div class="input-group">
           <label>Пароль</label>
-          <input 
-            v-model="passwordField" 
-            type="password" 
-            placeholder="Введите пароль" 
-            required
-          />
+          <input v-model="password" type="password" placeholder="Введите пароль" />
         </div>
 
-        <button 
-          type="submit" 
-          class="auth-submit"
-        >
-          Войти
-        </button>
+        <button type="submit" class="auth-submit">Войти</button>
       </form>
 
       <p class="auth-footer">
-        Нет аккаунта? 
+        Нет аккаунта?
         <router-link to="/register">Зарегистрироваться</router-link>
       </p>
     </div>
@@ -58,32 +36,18 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { authStore, login as authLogin } from '../composables/useAuth'
+import { authStore, login } from '../composables/useAuth'
 
 const router = useRouter()
 
-// ===== 1. ПОЛЯ ВВОДА =====
-const emailField = ref('')
-const passwordField = ref('')
+const email = ref('')
+const password = ref('')
 
-// ===== 2. УВЕДОМЛЕНИЯ =====
-const notification = ref({ show: false, message: '', type: '' })
-
-function showNotification(message, type = 'error') {
-  notification.value = { show: true, message, type }
-  setTimeout(() => {
-    notification.value.show = false
-  }, 2000)
-}
-
-// ===== 3. ОБРАБОТКА ВХОДА =====
 const handleLogin = () => {
-  const success = authLogin(emailField.value, passwordField.value)
+  const success = login(email.value, password.value)
 
   if (success) {
     router.push('/home')
-  } else {
-    showNotification('Неверный логин или пароль. Проверь данные или зарегистрируйся заново.')
   }
 }
 </script>
@@ -95,8 +59,7 @@ const handleLogin = () => {
   align-items: center;
   min-height: 100vh;
   background-color: #000;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: 20px;
 }
 
 .auth-card {
@@ -104,10 +67,7 @@ const handleLogin = () => {
   width: 100%;
   max-width: 400px;
   background-color: #0a0a0a;
-  padding-top: 50px;
-  padding-bottom: 40px;
-  padding-left: 30px;
-  padding-right: 30px;
+  padding: 50px 40px;
   border: 1px solid #1a1a1a;
   border-radius: 32px;
 }
@@ -121,7 +81,6 @@ const handleLogin = () => {
   color: #555;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: 0.2s;
 }
 
 .back-button:hover {
@@ -136,16 +95,11 @@ const handleLogin = () => {
   margin-bottom: 30px;
 }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 20px;
 }
 
 .input-group label {
@@ -180,6 +134,7 @@ const handleLogin = () => {
   font-weight: 800;
   cursor: pointer;
   transition: 0.2s;
+  width: 100%;
 }
 
 .auth-submit:hover {
@@ -191,13 +146,11 @@ const handleLogin = () => {
   text-align: center;
   margin-top: 25px;
   color: #555;
-  font-size: 0.9rem;
 }
 
 .auth-footer a {
   color: #34c759;
   text-decoration: none;
-  font-weight: 600;
 }
 
 .notification {
@@ -211,6 +164,11 @@ const handleLogin = () => {
   color: #fff;
   z-index: 1000;
   animation: slideUp 0.3s ease;
+}
+
+.notification.success {
+  background-color: #34c759;
+  color: white;
 }
 
 .notification.error {

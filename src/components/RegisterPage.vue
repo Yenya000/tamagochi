@@ -1,110 +1,57 @@
 <template>
   <div class="auth-page">
     <div class="auth-container">
-      <button 
-        class="back-button" 
-        @click="router.push('/login')"
-      >
+      <button class="back-button" @click="router.push('/login')">
         ← Назад
       </button>
 
       <h2 class="auth-title">Регистрация</h2>
 
       <!-- Уведомление -->
-      <div v-if="notification.show" class="notification" :class="notification.type">
-        {{ notification.message }}
+      <div v-if="authStore.notificationMessage.value" class="notification" :class="authStore.notificationType.value">
+        {{ authStore.notificationMessage.value }}
       </div>
 
-      <form 
-        @submit.prevent="handleRegister" 
-        novalidate
-      >
+      <form @submit.prevent="handleRegister" novalidate>
         <div class="input-group">
-          <input 
-            v-model="username" 
-            type="text" 
-            placeholder="Имя (напр. Анна)" 
-          />
+          <input v-model="username" type="text" placeholder="Имя (напр. Анна)" />
         </div>
 
         <div class="input-group">
-          <input 
-            v-model="email" 
-            type="email" 
-            placeholder="Email" 
-          />
+          <input v-model="email" type="text" placeholder="Email" />
         </div>
 
         <div class="input-group">
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="Пароль" 
-          />
+          <input v-model="password" type="password" placeholder="Пароль" />
         </div>
-        
-        <button 
-          type="submit" 
-          class="submit-btn"
-        >
-          Создать аккаунт
-        </button>
+
+        <button type="submit" class="submit-btn">Создать аккаунт</button>
       </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { register } from '../composables/useAuth'
+import { authStore, register, validateUsername, validateEmail, validatePassword } from '../composables/useAuth'
 
 const router = useRouter()
 
-// ===== 1. ПОЛЯ ВВОДА =====
 const username = ref('')
 const email = ref('')
 const password = ref('')
 
-// ===== 2. УВЕДОМЛЕНИЯ =====
-const notification = ref({ show: false, message: '', type: '' })
+// Следим за полями и валидируем по мере ввода (опционально)
+watch(username, (val) => {
+  console.log(validateUsername(val))
+})
 
-function showNotification(message, type = 'error') {
-  notification.value = { show: true, message, type }
-  setTimeout(() => {
-    notification.value.show = false
-  }, 2000)
-}
-
-// ===== 3. ОБРАБОТКА РЕГИСТРАЦИИ =====
 const handleRegister = () => {
-  // Валидация имени (русские буквы, с большой буквы)
-  if (!/^[А-ЯЁ][а-яё]+$/.test(username.value)) {
-    showNotification('Имя должно быть на русском, с большой буквы')
-    return
-  }
-
-  // Базовая проверка почты
-  if (email.value.length < 5 || !email.value.includes('@')) {
-    showNotification('Введите корректный Email')
-    return
-  }
-
-  // Минимальная длина пароля
-  if (password.value.length < 4) {
-    showNotification('Пароль слишком короткий (минимум 4 символа)')
-    return
-  }
-  
   const success = register(email.value, password.value, username.value)
 
   if (success) {
     router.push('/select-habit')
-  } else {
-    // Ошибка уже показывается внутри register, но на всякий случай:
-    if (notification.value.show === false) {
-      showNotification('Этот email уже зарегистрирован')
-    }
   }
 }
 </script>
@@ -209,6 +156,11 @@ input::placeholder {
   color: #fff;
   z-index: 1000;
   animation: slideUp 0.3s ease;
+}
+
+.notification.success {
+  background-color: #34c759;
+  color: white;
 }
 
 .notification.error {
