@@ -8,7 +8,6 @@
     </div>
 
     <div class="shop-section">
-      <h3 class="section-tag">Достижения</h3>
       <div class="items-grid">
         
         <div 
@@ -36,7 +35,7 @@
           <div class="item-info">
             <strong class="item-name">Марафон пройден!</strong>
             <p class="item-desc">
-              Цель в {{ user?.goalDays }} дней достигнута
+              Цель в {{ user?.goalDays }} {{ user?.goalDays === 1 ? 'день' : 'дней' }} достигнута
             </p>
           </div>
           <button 
@@ -70,31 +69,37 @@
         </div>
       </div>
     </div>
+
+    <!-- Уведомление -->
+    <div v-if="notification.show" class="notification" :class="notification.type">
+      {{ notification.message }}
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { authStore } from '../composables/useAuth'
 import { claimCrystalReward, buyItem } from '../composables/useHabitTracker'
 
 const user = authStore.user
 
+// Уведомления
+const notification = ref({ show: false, message: '', type: '' })
+
+function showNotification(message, type = 'success') {
+  notification.value = { show: true, message, type }
+  setTimeout(() => {
+    notification.value.show = false
+  }, 2000)
+}
+
 // Расчет доступности марафона
 const marathonAvailable = computed(() => {
   let isAvailable = false
   
-  if (user.value && user.value.goalStartDate) {
-    const start = new Date(user.value.goalStartDate)
-    const today = new Date()
-    const diffTime = Math.abs(today - start)
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays >= (user.value.goalDays || 0)) {
-      isAvailable = true
-    } else {
-      isAvailable = false
-    }
+  if (user.value && user.value.goalStartDate && user.value.isCycleCompleted) {
+    isAvailable = true
   }
   
   return isAvailable
@@ -102,22 +107,19 @@ const marathonAvailable = computed(() => {
 
 // Сумма награды за марафон
 const marathonRewardAmount = computed(() => {
-  const g = user.value?.goalDays
+  const goalDays = user.value?.goalDays
   let amount = 0
 
-  if (g === 7) {
+  if (goalDays === 1) {
+    amount = 10
+  } else if (goalDays === 7) {
     amount = 50
-  } 
-  else if (g === 30) {
+  } else if (goalDays === 30) {
     amount = 150
-  } 
-  else if (g === 90) {
+  } else if (goalDays === 90) {
     amount = 300
-  } 
-  else {
-    amount = 0
   }
-
+  
   return amount
 })
 
@@ -129,8 +131,6 @@ const hasClaimedCurrentMarathon = computed(() => {
     const goalKey = 'marathon' + user.value.goalDays
     if (user.value.rewards[goalKey] === true) {
       alreadyClaimed = true
-    } else {
-      alreadyClaimed = false
     }
   }
   
@@ -139,26 +139,44 @@ const hasClaimedCurrentMarathon = computed(() => {
 
 // Обработка кликов
 const handleClaim = (type) => {
-  const success = claimCrystalReward(type)
-  if (success) {
-    alert('Кристаллы получены!')
+  let claimSuccess = false
+  let rewardAmount = 0
+  
+  if (type === 'registration') {
+    rewardAmount = 50
+    claimSuccess = claimCrystalReward(rewardAmount)
+  }
+  
+  if (claimSuccess) {
+    showNotification('Кристаллы получены!', 'success')
+  } else {
+    showNotification('Награда уже получена', 'error')
   }
 }
 
 const handleMarathonReward = () => {
+  let claimSuccess = false
   const goalType = 'marathon' + user.value.goalDays
-  const success = claimCrystalReward(goalType)
-  if (success) {
-    alert('Бонус за марафон зачислен!')
+  const amount = marathonRewardAmount.value
+  
+  if (amount > 0) {
+    claimSuccess = claimCrystalReward(amount)
+  }
+  
+  if (claimSuccess) {
+    showNotification('Бонус за марафон зачислен!', 'success')
+  } else {
+    showNotification('Награда уже получена или недоступна', 'error')
   }
 }
 
 const handlePurchase = (id, cost) => {
   const isBought = buyItem(id, cost)
+  
   if (isBought) {
-    alert('Предмет куплен!')
+    showNotification('Предмет куплен!', 'success')
   } else {
-    alert('Недостаточно кристаллов!')
+    showNotification('Недостаточно кристаллов!', 'error')
   }
 }
 </script>
@@ -166,15 +184,9 @@ const handlePurchase = (id, cost) => {
 <style scoped>
 .shop-container {
   max-width: 800px;
-  margin-top: 0;
-  margin-bottom: 0;
-  margin-left: auto;
-  margin-right: auto;
-  padding-top: 40px;
-  padding-bottom: 40px;
-  padding-left: 20px;
-  padding-right: 20px;
-  background-color: #000;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background-color: var(--bg-color, #000);
   min-height: 100vh;
 }
 
@@ -184,14 +196,14 @@ const handlePurchase = (id, cost) => {
 }
 
 .title {
-  color: #fff;
+  color: var(--text-main, #fff);
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 10px;
 }
 
 .balance-display {
-  color: #34c759;
+  color: var(--accent-color, #34c759);
   font-weight: 800;
   font-size: 1.5rem;
   margin-bottom: 30px;
@@ -202,7 +214,7 @@ const handlePurchase = (id, cost) => {
 }
 
 .section-tag {
-  color: #444;
+  color: var(--text-secondary, #444);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -219,33 +231,19 @@ const handlePurchase = (id, cost) => {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding-top: 25px;
-  padding-bottom: 25px;
-  padding-left: 25px;
-  padding-right: 25px;
-  background-color: #0a0a0a;
-  border-top-width: 1px;
-  border-bottom-width: 1px;
-  border-left-width: 1px;
-  border-right-width: 1px;
-  border-style: solid;
-  border-color: #1a1a1a;
+  padding: 25px;
+  background-color: var(--card-bg, #0a0a0a);
+  border: 1px solid var(--border-color, #1a1a1a);
   border-radius: 24px;
 }
 
 .bonus-card {
-  border-top-color: rgba(52, 199, 89, 0.3);
-  border-bottom-color: rgba(52, 199, 89, 0.3);
-  border-left-color: rgba(52, 199, 89, 0.3);
-  border-right-color: rgba(52, 199, 89, 0.3);
+  border-color: rgba(52, 199, 89, 0.3);
 }
 
 .marathon-card {
   background-image: linear-gradient(90deg, #0a0a0a 0%, #0d1a0d 100%);
-  border-top-color: #34c759;
-  border-bottom-color: #34c759;
-  border-left-color: #34c759;
-  border-right-color: #34c759;
+  border-color: var(--accent-color, #34c759);
 }
 
 .item-icon {
@@ -257,29 +255,23 @@ const handlePurchase = (id, cost) => {
 }
 
 .item-name {
-  color: #fff;
+  color: var(--text-main, #fff);
   font-size: 1.2rem;
   display: block;
 }
 
 .item-desc {
-  color: #555;
+  color: var(--text-secondary, #555);
   font-size: 0.9rem;
   margin-top: 5px;
   margin-bottom: 0;
 }
 
 .buy-button {
-  background-color: #34c759;
+  background-color: var(--accent-color, #34c759);
   color: #fff;
-  border-top-style: none;
-  border-bottom-style: none;
-  border-left-style: none;
-  border-right-style: none;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  padding-left: 24px;
-  padding-right: 24px;
+  border: none;
+  padding: 12px 24px;
   border-radius: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -294,5 +286,39 @@ const handlePurchase = (id, cost) => {
 
 .buy-button:hover {
   transform: scale(1.05);
+}
+
+.notification {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 30px;
+  background-color: var(--card-bg, #1a1a1a);
+  color: var(--text-main, #fff);
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+.notification.success {
+  background-color: #34c759;
+  color: white;
+}
+
+.notification.error {
+  background-color: #ff3b30;
+  color: white;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 </style>

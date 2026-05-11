@@ -120,14 +120,14 @@
       </div>
       <div class="days-selector">
         <div 
-          v-for="d in [7, 30, 90]" 
+          v-for="d in [1, 7, 30, 90]" 
           :key="d" 
           class="custom-radio" 
           :class="{ 'selected': goalDays === d }" 
           @click="goalDays = d"
         >
           <div class="radio-circle"></div>
-          <span class="radio-label">{{ d }} дней</span>
+          <span class="radio-label">{{ d }} {{ d === 1 ? 'день' : 'дней' }}</span>
         </div>
       </div>
     </div>
@@ -142,7 +142,6 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { authStore } from '../composables/useAuth'
-import { startNewCycle } from '../composables/useHabitTracker'
 
 const router = useRouter()
 const user = authStore.user
@@ -155,10 +154,25 @@ const goals = reactive({
   meditation: { active: false, val: 10 }
 })
 
+function saveUser() {
+  if (!user.value) return
+  
+  localStorage.setItem('tamagochi_user', JSON.stringify(user.value))
+  
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  const index = allUsers.findIndex(u => u.email === user.value.email)
+  
+  if (index !== -1) {
+    allUsers[index] = user.value
+    localStorage.setItem('habit_users', JSON.stringify(allUsers))
+  }
+}
+
 const startCycle = () => {
+  let errorMessage = ''
+  
   if (!user.value) {
-    alert('Ошибка: пользователь не авторизован')
-    return
+    errorMessage = 'Ошибка: пользователь не авторизован'
   }
   
   const habits = []
@@ -205,12 +219,26 @@ const startCycle = () => {
   }
 
   if (habits.length === 0) {
-    alert('Нужно выбрать хотя бы одну цель!')
+    errorMessage = 'Нужно выбрать хотя бы одну цель!'
+  }
+  
+  if (errorMessage !== '') {
+    alert(errorMessage)
     return
   }
 
   user.value.habits = habits
-  startNewCycle(goalDays.value)
+  user.value.isDead = false
+  user.value.isWilted = false
+  user.value.score = 0
+  user.value.treeStage = 1
+  user.value.goalDays = goalDays.value
+  user.value.goalStartDate = new Date().toISOString()
+  user.value.isCycleCompleted = false
+  user.value.alreadyClaimed = false
+  user.value.lastLogin = new Date().toISOString()
+  
+  saveUser()
   router.push('/home')
 }
 </script>
@@ -220,19 +248,19 @@ const startCycle = () => {
   max-width: 1000px;
   margin: 0 auto;
   padding: 40px 20px;
-  background-color: #000;
+  background-color: var(--bg-color, #000);
   min-height: 100vh;
 }
 
 .title {
-  color: #fff;
+  color: var(--text-main, #fff);
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 5px;
 }
 
 .subtitle {
-  color: #555;
+  color: var(--text-secondary, #555);
   margin-bottom: 40px;
 }
 
@@ -244,15 +272,15 @@ const startCycle = () => {
 
 .goal-card-item {
   padding: 30px;
-  background-color: #0a0a0a;
-  border: 1px solid #1a1a1a;
+  background-color: var(--card-bg, #0a0a0a);
+  border: 1px solid var(--border-color, #1a1a1a);
   border-radius: 32px;
   cursor: pointer;
   transition: 0.3s ease;
 }
 
 .goal-card-item.active {
-  border-color: #34c759;
+  border-color: var(--accent-color, #34c759);
   background-color: rgba(52, 199, 89, 0.05);
 }
 
@@ -268,13 +296,13 @@ const startCycle = () => {
 
 .info-text strong {
   font-size: 1.3rem;
-  color: #fff;
+  color: var(--text-main, #fff);
 }
 
 .card-parameters {
   margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px dashed #222;
+  border-top: 1px dashed var(--border-color, #222);
 }
 
 .input-group {
@@ -287,23 +315,23 @@ const startCycle = () => {
 .num-input {
   width: 70px;
   padding: 10px;
-  background-color: #111;
-  border: 1px solid #222;
+  background-color: var(--bg-color, #111);
+  border: 1px solid var(--border-color, #222);
   border-radius: 12px;
-  color: #fff;
+  color: var(--text-main, #fff);
   text-align: center;
 }
 
 .select-input {
   background-color: transparent;
   border: none;
-  color: #34c759;
+  color: var(--accent-color, #34c759);
   font-weight: 700;
   cursor: pointer;
 }
 
 .unit-label {
-  color: #555;
+  color: var(--text-secondary, #555);
 }
 
 .toggle-switch {
@@ -321,7 +349,7 @@ const startCycle = () => {
 .slider {
   width: 40px;
   height: 20px;
-  background-color: #222;
+  background-color: var(--border-color, #222);
   border-radius: 20px;
   position: relative;
   transition: 0.3s;
@@ -340,7 +368,7 @@ const startCycle = () => {
 }
 
 input:checked + .slider {
-  background-color: #34c759;
+  background-color: var(--accent-color, #34c759);
 }
 
 input:checked + .slider:before {
@@ -349,14 +377,14 @@ input:checked + .slider:before {
 
 .toggle-text {
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-secondary, #555);
 }
 
 .cycle-box {
   margin-top: 40px;
   padding: 40px;
-  background-color: #0a0a0a;
-  border: 1px solid #1a1a1a;
+  background-color: var(--card-bg, #0a0a0a);
+  border: 1px solid var(--border-color, #1a1a1a);
   border-radius: 32px;
   display: flex;
   justify-content: space-between;
@@ -364,12 +392,12 @@ input:checked + .slider:before {
 }
 
 .cycle-info h3 {
-  color: #fff;
+  color: var(--text-main, #fff);
   margin: 0;
 }
 
 .cycle-info p {
-  color: #555;
+  color: var(--text-secondary, #555);
   margin: 5px 0 0;
 }
 
@@ -380,14 +408,14 @@ input:checked + .slider:before {
 
 .custom-radio {
   padding: 12px 20px;
-  border: 2px solid #1a1a1a;
+  border: 2px solid var(--border-color, #1a1a1a);
   border-radius: 18px;
   cursor: pointer;
   transition: 0.3s;
 }
 
 .custom-radio.selected {
-  border-color: #34c759;
+  border-color: var(--accent-color, #34c759);
   background-color: rgba(52, 199, 89, 0.1);
 }
 
@@ -400,12 +428,12 @@ input:checked + .slider:before {
 }
 
 .selected .radio-circle {
-  background-color: #34c759;
-  border-color: #34c759;
+  background-color: var(--accent-color, #34c759);
+  border-color: var(--accent-color, #34c759);
 }
 
 .radio-label {
-  color: #fff;
+  color: var(--text-main, #fff);
   font-weight: 600;
   margin-left: 8px;
 }
@@ -414,7 +442,7 @@ input:checked + .slider:before {
   width: 100%;
   margin-top: 40px;
   padding: 25px;
-  background-color: #34c759;
+  background-color: var(--accent-color, #34c759);
   border: none;
   border-radius: 28px;
   color: #fff;

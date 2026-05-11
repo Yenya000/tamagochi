@@ -87,16 +87,34 @@ function nukeAll() {
 </script>
 
 <style>
-/* Оставляю ТВОИ стили полностью без изменений */
 :root {
+  --bg-color: #f0f4f3;
+  --card-bg: #ffffff;
+  --text-main: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --border-color: rgba(0, 0, 0, 0.08);
   --accent-color: #34c759;
+  --accent-hover: #28a745;
+  --focus-shadow: 0 0 0 4px rgba(52, 199, 89, 0.2);
+  --shadow-md: 0 10px 20px rgba(0,0,0,0.08);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #161617;
+    --card-bg: #1c1c1e;
+    --text-main: #f5f5f7;
+    --text-secondary: #86868b;
+    --border-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 body {
   margin: 0;
-  background-color: #000;
-  color: #fff;
-  font-family: sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: -apple-system, system-ui, sans-serif;
 }
 
 .content-wrapper {

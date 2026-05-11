@@ -11,72 +11,83 @@ export const authStore = {
 
 // Функция входа
 export function login(email, password) {
+  let loginSuccess = false
+  
   const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
-  const foundUser = allUsers.find(u => u.email === email && u.password === password)
-
-  if (foundUser) {
-    user.value = foundUser
-    localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
-    return true
+  
+  for (let i = 0; i < allUsers.length; i++) {
+    const foundUser = allUsers[i]
+    
+    if (foundUser.email === email && foundUser.password === password) {
+      user.value = foundUser
+      localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
+      loginSuccess = true
+    }
   }
-  return false
+  
+  return loginSuccess
 }
 
-// Функция выхода (теперь экспортируется отдельно для TheHeader.vue)
+// Функция выхода
 export function logout() {
   user.value = null
   localStorage.removeItem('tamagochi_user')
-  // Редирект на логин через перезагрузку или роутер
   window.location.href = '/login'
 }
 
 // Функция регистрации
 export function register(email, password, username) {
+  let registerSuccess = false
+  
   const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
   
   // Проверка на существующий email
-  if (allUsers.find(u => u.email === email)) {
-    return false
-  }
-
-  // Создание нового пользователя со всеми начальными статами
-  const newUser = {
-    id: Date.now(),
-    username: username,
-    email: email,
-    password: password,
-    // Прогресс
-    score: 0,
-    treeStage: 1,
-    activeDays: 0,
-    // Цели
-    goalDays: 0,
-    goalStartDate: null,
-    lastLogin: new Date().toISOString(),
-    // Игровые элементы
-    habits: [],
-    crystals: 100, // Начальный капитал
-    inventory: [],
-    // Состояния тамагочи
-    isWilted: false,
-    isDead: false,
-    isBlocked: false,
-    alreadyClaimed: false,
-    // Система наград
-    rewards: {
-      registration: true,
-      marathon7: false,
-      marathon30: false,
-      marathon90: false
+  let emailExists = false
+  
+  for (let i = 0; i < allUsers.length; i++) {
+    if (allUsers[i].email === email) {
+      emailExists = true
     }
   }
+  
+  // Если email не существует - регистрируем
+  if (!emailExists) {
+    const newUser = {
+      id: Date.now(),
+      username: username,
+      email: email,
+      password: password,
+      score: 0,
+      treeStage: 1,
+      activeDays: 0,
+      goalDays: 0,
+      goalStartDate: null,
+      lastLogin: new Date().toISOString(),
+      habits: [],
+      crystals: 100,
+      inventory: [],
+      isWilted: false,
+      isDead: false,
+      isBlocked: false,
+      alreadyClaimed: false,
+      isCycleCompleted: false,
+      rewards: {
+        registration: true,
+        marathon1: false,
+        marathon7: false,
+        marathon30: false,
+        marathon90: false
+      }
+    }
 
-  // Сохраняем в общий список и в текущую сессию
-  allUsers.push(newUser)
-  localStorage.setItem('habit_users', JSON.stringify(allUsers))
+    allUsers.push(newUser)
+    localStorage.setItem('habit_users', JSON.stringify(allUsers))
+    
+    user.value = newUser
+    localStorage.setItem('tamagochi_user', JSON.stringify(newUser))
+    
+    registerSuccess = true
+  }
   
-  user.value = newUser
-  localStorage.setItem('tamagochi_user', JSON.stringify(newUser))
-  
-  return true
+  return registerSuccess
 }
