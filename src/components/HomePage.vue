@@ -1,301 +1,285 @@
 <template>
-  <div class="home-wrapper">
-    <div class="central-container">
+  <div class="home-container">
+    <div class="status-panel">
+      <div class="stat-block">
+        <span class="label">Выполнено сегодня</span>
+        <span class="value">{{ completedToday }} / {{ habits.length }}</span>
+      </div>
+      <div class="stat-block">
+        <span class="label">Кристаллы</span>
+        <span class="value">💎 {{ user?.crystals || 0 }}</span>
+      </div>
+    </div>
+
+    <div class="tree-zone" :class="{ 'wilted-border': user?.isWilted }">
+      <div class="visual-container">
+        <span class="tree-emoji">{{ treeEmoji }}</span>
+      </div>
       
-      <div class="habit-card-base tree-card-centered">
-        <div class="streak-badge">
-          🔥 {{ activeDays }} дн.
-        </div>
-
-        <div class="tree-display">
-          <span class="emoji-tree">{{ treeEmoji }}</span>
-        </div>
-        <div class="level-badge">Уровень {{ level }}</div>
+      <div class="tree-message">{{ treeMessage }}</div>
+      
+      <div v-if="allHabitsDone && !user?.isWilted" class="congratulations-card">
+        <span class="stars">✨</span>
+        <p>Все цели выполнены! Дерево сияет!</p>
       </div>
 
-      <div class="habit-card-base tasks-card">
-        <h3>Задания на сегодня</h3>
+      <div v-if="user?.isWilted" class="wilt-warning">
+        <p class="warning-title">⚠️ Дерево увяло!</p>
+        <p class="warning-text">Вы пропустили день. Полейте его сейчас, чтобы сохранить прогресс.</p>
         
-        <div class="tasks-list">
-          <label v-if="userGoals.water.active === true" class="task-item-interactive">
-            <input type="checkbox" v-model="todayProgress.water" v-on:change="checkGoals">
-            <span class="task-text">💧 Выпить {{ userGoals.water.amount }} {{ userGoals.water.unit }} воды</span>
-          </label>
-
-          <label v-if="userGoals.exercise.active === true" class="task-item-interactive">
-            <input type="checkbox" v-model="todayProgress.exercise" v-on:change="checkGoals">
-            <span class="task-text">🏃 Зарядка ({{ userGoals.exercise.minutes }} мин)</span>
-          </label>
-
-          <label v-if="userGoals.reading.active === true" class="task-item-interactive">
-            <input type="checkbox" v-model="todayProgress.reading" v-on:change="checkGoals">
-            <div class="task-text reading-layout">
-              <span>📚 Прочитать {{ userGoals.reading.pages }} стр.</span>
-              <input type="number" placeholder="Факт" class="small-fact-input" v-on:click.stop>
-            </div>
-          </label>
-        </div>
-
         <button 
-          class="main-button full-width-btn" 
-          :disabled="isAllDone === false || alreadyClaimed === true"
-          v-on:click="completeDay"
+          v-if="hasWateringCan" 
+          @click="handleWatering" 
+          class="use-item-btn"
         >
-          {{ buttonText }}
+          💧 Использовать лейку
         </button>
+        
+        <div v-else class="dead-tree-actions">
+          <p class="no-can-text">У вас нет лейки...</p>
+          <router-link to="/shop" class="buy-link">Купить в магазине</router-link>
+          <button @click="resetGame" class="reset-btn">Посадить новое дерево</button>
+        </div>
       </div>
+    </div>
 
+    <div class="habits-section">
+      <h3 class="section-title">Задания на сегодня</h3>
+      <div class="habits-list">
+        <div 
+          v-for="habit in habits" 
+          :key="habit.name"
+          class="habit-card"
+          :class="{ 'completed-card': habit.completed }"
+        >
+          <div class="habit-info">
+            <span class="habit-name">{{ habit.name }}</span>
+            <span class="habit-target">
+              <template v-if="habit.type === 'reading'">{{ habit.pages }} стр.</template>
+              <template v-else-if="habit.type === 'exercise'">{{ habit.minutes }} мин.</template>
+              <template v-else>{{ habit.amount }} {{ habit.unit }}</template>
+            </span>
+          </div>
+          <button class="check-btn" @click="handleToggle(habit.name)">
+            {{ habit.completed ? '✅' : '🔘' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-grid">
+      <router-link to="/shop" class="nav-btn secondary">🛒 Магазин</router-link>
+      <router-link to="/select-habit" class="nav-btn secondary">⚙️ Настройки</router-link>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { authStore } from '../composables/useAuth'
+import { completeHabit, useWateringCan, checkCycleStatus } from '../composables/useHabitTracker'
 
-// ФЛАГИ СОСТОЯНИЯ
-const userGoals = ref({ water: {}, exercise: {}, reading: {} })
-const score = ref(0)
-const level = ref(1)
-const activeDays = ref(0) // Наш новый флаг для дней
-const alreadyClaimed = ref(false)
-const todayProgress = ref({ water: false, exercise: false, reading: false })
+const router = useRouter()
+const user = authStore.user
 
-const isAllDone = ref(false)
-const treeEmoji = ref('🌱')
-const buttonText = ref('Засчитать день')
+// Вычисляемые данные
+const habits = computed(() => user.value?.habits || [])
+const completedToday = computed(() => habits.value.filter(h => h.completed).length)
+const allHabitsDone = computed(() => habits.value.length > 0 && completedToday.value === habits.value.length)
 
-function calculateTreeState() {
-  level.value = Math.floor(score.value / 5) + 1
+// Проверка наличия лейки в инвентаре (массив строк)
+const hasWateringCan = computed(() => {
+  return user.value?.inventory?.includes('watering_can')
+})
+
+const treeEmoji = computed(() => {
+  if (user.value?.isDead) return '💀'
+  if (user.value?.isWilted) return '🥀'
+  // Стадии из твоего useHabitTracker (каждые 5 очков — новый этап)
+  const stages = ['🌱', '🌿', '🌳', '🌲', '🌸']
+  const stageIndex = (user.value?.treeStage || 1) - 1
+  return stages[stageIndex] || '🌱'
+})
+
+const treeMessage = computed(() => {
+  if (user.value?.isDead) return 'Дерево погибло...'
+  if (user.value?.isWilted) return 'Дерево увяло... Нужно полить!'
+  if (allHabitsDone.value) return 'Дерево счастливо!'
+  return 'Продолжай в том же духе!'
+})
+
+onMounted(() => {
+  if (!user.value) return
   
-  if (level.value >= 7) {
-    treeEmoji.value = '🌲'
-  } 
-  else if (level.value >= 4) {
-    treeEmoji.value = '🌳'
-  } 
-  else if (level.value >= 2) {
-    treeEmoji.value = '🌿'
-  } 
-  else {
-    treeEmoji.value = '🌱'
-  }
-}
+  // Проверка пропуска дней
+  if (user.value.lastLogin) {
+    const lastDate = new Date(user.value.lastLogin)
+    const today = new Date()
+    const diffDays = Math.floor(Math.abs(today - lastDate) / (1000 * 60 * 60 * 24))
 
-function checkGoals() {
-  isAllDone.value = true
-
-  if (userGoals.value.water.active === true && todayProgress.value.water === false) {
-    isAllDone.value = false
-  } 
-  else if (userGoals.value.exercise.active === true && todayProgress.value.exercise === false) {
-    isAllDone.value = false
-  } 
-  else if (userGoals.value.reading.active === true && todayProgress.value.reading === false) {
-    isAllDone.value = false
-  }
-}
-
-function updateButtonText() {
-  if (alreadyClaimed.value === true) {
-    buttonText.value = 'День завершен! 🎉'
-  } else {
-    buttonText.value = 'Засчитать день'
-  }
-}
-
-function updateGoalDifficulty() {
-  let g = userGoals.value
-  
-  if (g.exercise.active === true) {
-    g.exercise.daysPassed = g.exercise.daysPassed + 1
-    if (g.exercise.daysPassed >= 5) {
-      if (g.exercise.minutes < 30) {
-        g.exercise.minutes = g.exercise.minutes + 5
-        g.exercise.daysPassed = 0
+    if (diffDays >= 1) {
+      if (diffDays < 2) {
+        user.value.isWilted = true
+      } else {
+        user.value.isDead = true 
       }
     }
   }
   
-  if (g.reading.active === true && g.reading.autoIncrease === true) {
-    g.reading.daysInWeek = g.reading.daysInWeek + 1
-    if (g.reading.daysInWeek >= 7) {
-      g.reading.pages = g.reading.pages + 10
-      g.reading.daysInWeek = 0
-    }
-  }
-  
-  localStorage.setItem('userGoals', JSON.stringify(g))
-}
-
-function completeDay() {
-  // 1. Увеличиваем общий балл дерева
-  score.value = score.value + 1
-  localStorage.setItem('treeScore', score.value)
-  
-  // 2. Увеличиваем счетчик активных дней
-  activeDays.value = activeDays.value + 1
-  localStorage.setItem('activeDays', activeDays.value)
-  
-  // 3. Обновляем флаги и сложность
-  alreadyClaimed.value = true
-  calculateTreeState()
-  updateButtonText()
-  updateGoalDifficulty()
-}
-
-onMounted(function() {
-  // Загружаем цели
-  const savedGoals = localStorage.getItem('userGoals')
-  if (savedGoals) {
-    userGoals.value = JSON.parse(savedGoals)
-  }
-  
-  // Загружаем очки дерева
-  const savedScore = localStorage.getItem('treeScore')
-  if (savedScore) {
-    score.value = parseInt(savedScore)
-  }
-
-  // Загружаем количество дней
-  const savedDays = localStorage.getItem('activeDays')
-  if (savedDays) {
-    activeDays.value = parseInt(savedDays)
-  }
-
-  calculateTreeState()
-  checkGoals()
-  updateButtonText()
+  checkCycleStatus()
 })
+
+const handleToggle = (name) => {
+  if (user.value.isWilted || user.value.isDead) return 
+  completeHabit(name)
+}
+
+const handleWatering = () => {
+  useWateringCan()
+}
+
+const resetGame = () => {
+  user.value.isWilted = false
+  user.value.isDead = false
+  user.value.score = 0
+  user.value.treeStage = 1
+  user.value.habits = []
+  router.push('/select-habit')
+}
 </script>
 
 <style scoped>
-.home-wrapper {
-  display: flex;
-  justify-content: center;
+.home-container {
+  max-width: 600px;
+  margin: 0 auto;
   padding: 40px 20px;
+  background-color: #000;
+  min-height: 100vh;
+  color: #fff;
 }
 
-.central-container {
+.status-panel {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 30px;
-  width: 100%;
-  max-width: 480px;
-}
-
-/* Карточка Дерева */
-.tree-card-centered {
-  width: 100%;
-  text-align: center;
-  padding: 60px 20px;
-  background: var(--card-bg);
-  border-radius: 32px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border-color);
-  position: relative; /* Для позиционирования счетчика */
-}
-
-/* Счетчик дней (огонек) */
-.streak-badge {
-  position: absolute;
-  top: 20px;
-  right: 25px;
-  background: #fff5f5;
-  color: #ff4d4f;
-  padding: 6px 14px;
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 0.9rem;
-  border: 1px solid #ffccc7;
-}
-
-.emoji-tree {
-  font-size: 8rem;
-  display: block;
-  margin-bottom: 20px;
-}
-
-.level-badge {
-  display: inline-block;
-  background: var(--focus-shadow);
-  color: var(--accent-color);
-  padding: 8px 20px;
-  border-radius: 50px;
-  font-weight: 800;
-  font-size: 1rem;
-}
-
-/* Карточка Задач */
-.tasks-card {
-  width: 100%;
-  background: var(--card-bg);
-  border-radius: 32px;
-  padding: 35px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border-color);
-  box-sizing: border-box;
-}
-
-h3 {
-  margin: 0 0 25px 0;
-  text-align: center;
-  font-size: 1.4rem;
-}
-
-.tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  justify-content: space-between;
+  background-color: #0a0a0a;
+  padding: 20px 30px;
+  border-radius: 24px;
+  border: 1px solid #1a1a1a;
   margin-bottom: 30px;
 }
 
-.task-item-interactive {
+.stat-block { text-align: center; }
+
+.label {
+  color: #555;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  display: block;
+}
+
+.value {
+  color: #34c759;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.tree-zone {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 20px;
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  padding: 40px 20px;
+  background-color: #0a0a0a;
+  border-radius: 32px;
+  border: 1px solid #1a1a1a;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.wilted-border { border-color: #ff3b30; }
+
+.tree-emoji { font-size: 7rem; margin-bottom: 10px; }
+
+.tree-message { font-weight: 700; color: #888; }
+
+.congratulations-card {
+  margin-top: 20px;
+  padding: 15px 25px;
+  background: rgba(52, 199, 89, 0.1);
   border-radius: 20px;
+  border: 1px solid #34c759;
+  text-align: center;
+}
+
+.wilt-warning { text-align: center; margin-top: 20px; }
+
+.warning-title { color: #ff3b30; font-weight: 800; }
+
+.use-item-btn {
+  background-color: #007aff;
+  color: #fff;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 18px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  margin-top: 10px;
 }
 
-.task-item-interactive:hover {
-  border-color: var(--accent-color);
-  transform: translateY(-2px);
-  background: var(--card-bg);
+.habits-section { margin-bottom: 30px; }
+
+.section-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #444;
+  margin-bottom: 15px;
+  font-weight: 800;
 }
 
-.task-text {
-  flex: 1;
-  text-align: left;
-  font-weight: 600;
-  font-size: 1.05rem;
-}
-
-.reading-layout {
+.habit-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: #0a0a0a;
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  border: 1px solid #1a1a1a;
 }
 
-.small-fact-input {
-  width: 70px;
-  padding: 8px !important;
+.habit-info { display: flex; flex-direction: column; gap: 4px; }
+
+.habit-name { font-weight: 700; }
+
+.habit-target { font-size: 0.8rem; color: #34c759; font-weight: 600; }
+
+.completed-card { border-color: #34c759; opacity: 0.8; }
+
+.check-btn { background: none; border: none; font-size: 1.6rem; cursor: pointer; }
+
+.actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+.nav-btn {
+  padding: 15px;
   text-align: center;
-  border-radius: 10px !important;
+  background-color: #1a1a1a;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid #333;
+  font-weight: 700;
 }
 
-.full-width-btn {
-  width: 100%;
-}
+.buy-link { color: #007aff; text-decoration: none; display: block; margin-top: 10px; }
 
-input[type="checkbox"] {
-  width: 24px;
-  height: 24px;
-  accent-color: var(--accent-color);
+.reset-btn {
+  background-color: #ff3b30;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 12px;
+  margin-top: 15px;
   cursor: pointer;
 }
 </style>

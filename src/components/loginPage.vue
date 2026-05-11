@@ -1,24 +1,51 @@
 <template>
-  <div class="auth-wrapper">
-    <div class="habit-card-base auth-container">
-      <button class="back-link" @click="router.push('/')">← Назад</button>
-      <h2>Вход</h2>
+  <div class="auth-container">
+    <div class="auth-card">
+      <button 
+        class="back-button" 
+        @click="router.push('/')"
+      >
+        ← Назад
+      </button>
+
+      <h2 class="auth-title">Вход</h2>
       
-      <div class="auth-form">
+      <form 
+        @submit.prevent="handleLogin" 
+        class="auth-form"
+      >
         <div class="input-group">
-          <input v-model="email" type="text" placeholder="Email" @input="clearError" />
+          <label>Email</label>
+          <input 
+            v-model="emailField" 
+            type="email" 
+            placeholder="Введите ваш email" 
+            required
+          />
         </div>
+
         <div class="input-group">
-          <input v-model="password" type="password" placeholder="Пароль" @input="clearError" />
+          <label>Пароль</label>
+          <input 
+            v-model="passwordField" 
+            type="password" 
+            placeholder="Введите пароль" 
+            required
+          />
         </div>
-        
-        <!-- Твоя логика вывода ошибок -->
-        <div v-if="errorMessage" class="error-box">
-          {{ errorMessage }}
-        </div>
-        
-        <button class="main-button full-width" @click="handleLogin">Войти</button>
-      </div>
+
+        <button 
+          type="submit" 
+          class="auth-submit"
+        >
+          Войти
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Нет аккаунта? 
+        <router-link to="/register">Зарегистрироваться</router-link>
+      </p>
     </div>
   </div>
 </template>
@@ -26,48 +53,141 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+// Импортируем функцию входа и стор
+import { authStore, login as authLogin } from '../composables/useAuth'
 
 const router = useRouter()
-const email = ref('')
-const password = ref('')
-const errorMessage = ref('')
 
-const clearError = () => errorMessage.value = ''
+// Переменные для полей ввода
+const emailField = ref('')
+const passwordField = ref('')
 
 const handleLogin = () => {
-  // Твоя логика регистрации/входа
-  const users = JSON.parse(localStorage.getItem('users') || '[]')
-  const user = users.find(u => u.email === email.value && u.password === password.value)
+  // Передаем значения из рефов в функцию логики
+  const success = authLogin(
+    emailField.value, 
+    passwordField.value
+  )
 
-  if (user) {
-    localStorage.setItem('userToken', 'active')
-    localStorage.setItem('currentUser', JSON.stringify(user))
-    router.push('/select-habit')
+  if (success) {
+    // Если всё ок — летим на главную
+    router.push('/home')
   } else {
-    // Выводим твою ошибку в интерфейс
-    errorMessage.value = 'Аккаунт не найден или неверный пароль. Проверьте данные или зарегистрируйтесь.'
+    // Если нет — ругаемся
+    alert('Неверный логин или пароль. Проверь данные или зарегистрируйся заново.')
   }
 }
 </script>
 
 <style scoped>
-/* Стили те же, что были, плюс ошибка: */
-.error-box {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 12px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  font-size: 0.85rem;
-  border: 1px solid #fecaca;
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #000;
+  padding-left: 20px;
+  padding-right: 20px;
 }
-.back-link {
-  background: none; border: none; color: var(--text-secondary);
-  cursor: pointer; float: left; margin-bottom: 10px;
+
+.auth-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background-color: #0a0a0a;
+  padding-top: 50px;
+  padding-bottom: 40px;
+  padding-left: 30px;
+  padding-right: 30px;
+  border: 1px solid #1a1a1a;
+  border-radius: 32px;
 }
-.auth-wrapper { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
-.auth-container { max-width: 380px; width: 100%; text-align: center; }
-.input-group { margin-bottom: 12px; }
-input { width: 100%; padding: 14px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); box-sizing: border-box; }
-.full-width { width: 100%; margin-top: 10px; }
+
+.back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: transparent;
+  border: none;
+  color: #555;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.back-button:hover {
+  color: #34c759;
+}
+
+.auth-title {
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 30px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  color: #555;
+  font-size: 0.9rem;
+  margin-left: 10px;
+}
+
+.input-group input {
+  background-color: #111;
+  border: 1px solid #222;
+  border-radius: 16px;
+  padding: 15px 20px;
+  color: #fff;
+  font-size: 1rem;
+  transition: 0.3s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #34c759;
+}
+
+.auth-submit {
+  margin-top: 10px;
+  background-color: #34c759;
+  color: #fff;
+  border: none;
+  border-radius: 18px;
+  padding: 15px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.auth-submit:hover {
+  transform: translateY(-2px);
+  background-color: #30b350;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 25px;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.auth-footer a {
+  color: #34c759;
+  text-decoration: none;
+  font-weight: 600;
+}
 </style>

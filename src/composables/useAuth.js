@@ -1,53 +1,82 @@
 import { ref, computed } from 'vue'
 
-const currentUser = ref(null)
+// Реактивная переменная пользователя, синхронизированная с localStorage
+const user = ref(JSON.parse(localStorage.getItem('tamagochi_user') || 'null'))
 
-function loadCurrentUser() {
-  const saved = localStorage.getItem('tamagochi_user')
-  if (saved) {
-    currentUser.value = JSON.parse(saved)
-  }
+// Основной стор для проверки состояния
+export const authStore = {
+  user: user,
+  isLoggedIn: computed(() => !!user.value)
 }
 
-function saveCurrentUser(user) {
-  if (user) {
-    localStorage.setItem('tamagochi_user', JSON.stringify(user))
-    currentUser.value = user
-  } else {
-    localStorage.removeItem('tamagochi_user')
-    currentUser.value = null
+// Функция входа
+export function login(email, password) {
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  const foundUser = allUsers.find(u => u.email === email && u.password === password)
+
+  if (foundUser) {
+    user.value = foundUser
+    localStorage.setItem('tamagochi_user', JSON.stringify(foundUser))
+    return true
   }
+  return false
 }
 
-export function useAuth() {
-  function login(email, password) {
-    // Упрощенная логика для прототипа
-    const user = { email, name: email.split('@')[0], id: Date.now() }
-    saveCurrentUser(user)
-    return { success: true }
+// Функция выхода (теперь экспортируется отдельно для TheHeader.vue)
+export function logout() {
+  user.value = null
+  localStorage.removeItem('tamagochi_user')
+  // Редирект на логин через перезагрузку или роутер
+  window.location.href = '/login'
+}
+
+// Функция регистрации
+export function register(email, password, username) {
+  const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
+  
+  // Проверка на существующий email
+  if (allUsers.find(u => u.email === email)) {
+    return false
   }
 
-  function register(email, password, name) {
-    const newUser = { email, name, id: Date.now() }
-    saveCurrentUser(newUser)
-    return { success: true }
+  // Создание нового пользователя со всеми начальными статами
+  const newUser = {
+    id: Date.now(),
+    username: username,
+    email: email,
+    password: password,
+    // Прогресс
+    score: 0,
+    treeStage: 1,
+    activeDays: 0,
+    // Цели
+    goalDays: 0,
+    goalStartDate: null,
+    lastLogin: new Date().toISOString(),
+    // Игровые элементы
+    habits: [],
+    crystals: 100, // Начальный капитал
+    inventory: [],
+    // Состояния тамагочи
+    isWilted: false,
+    isDead: false,
+    isBlocked: false,
+    alreadyClaimed: false,
+    // Система наград
+    rewards: {
+      registration: true,
+      marathon7: false,
+      marathon30: false,
+      marathon90: false
+    }
   }
 
-  function logout() {
-    saveCurrentUser(null)
-  }
-
-  const isAuthenticated = computed(function() {
-    return currentUser.value !== null
-  })
-
-  loadCurrentUser()
-
-  return {
-    currentUser,
-    isAuthenticated,
-    login,
-    register,
-    logout
-  }
+  // Сохраняем в общий список и в текущую сессию
+  allUsers.push(newUser)
+  localStorage.setItem('habit_users', JSON.stringify(allUsers))
+  
+  user.value = newUser
+  localStorage.setItem('tamagochi_user', JSON.stringify(newUser))
+  
+  return true
 }
