@@ -1,24 +1,29 @@
 import { authStore } from './useAuth'
 
-// Вспомогательная функция для обновления всех хранилищ
+// ===== 1. ОБНОВЛЕНИЕ БАЗЫ ДАННЫХ =====
+// Сохраняет текущего пользователя в localStorage и общий список пользователей
 export function updateDatabase() {
   const user = authStore.user.value
   
   if (user) {
+    // Достаём всех пользователей
     const allUsers = JSON.parse(localStorage.getItem('habit_users') || '[]')
     
+    // Находим и обновляем текущего пользователя в общем списке
     for (let i = 0; i < allUsers.length; i++) {
       if (allUsers[i].email === user.email) {
         allUsers[i] = user
       }
     }
     
+    // Сохраняем обратно
     localStorage.setItem('habit_users', JSON.stringify(allUsers))
     localStorage.setItem('tamagochi_user', JSON.stringify(user))
   }
 }
 
-// 1. ПРИВЫЧКИ И КРИСТАЛЛЫ
+// ===== 2. ОТМЕТКА ПРИВЫЧКИ И НАЧИСЛЕНИЕ КРИСТАЛЛОВ =====
+// При выполнении привычки: +10 кристаллов, при снятии: -10
 export function completeHabit(habitName) {
   let habitFound = false
   let actionDone = false
@@ -34,10 +39,10 @@ export function completeHabit(habitName) {
         h.completed = !h.completed
         
         if (h.completed === true) {
-          user.crystals = user.crystals + 10
+          user.crystals = user.crystals + 10  // +10 за выполнение
           actionDone = true
         } else {
-          user.crystals = user.crystals - 10
+          user.crystals = user.crystals - 10  // -10 если снял отметку
           actionDone = true
         }
       }
@@ -49,21 +54,25 @@ export function completeHabit(habitName) {
   }
 }
 
-// 2. ЗАВЕРШЕНИЕ ДНЯ И РОСТ
+// ===== 3. ЗАВЕРШЕНИЕ ДНЯ (КОГДА ВСЕ ПРИВЫЧКИ ВЫПОЛНЕНЫ) =====
+// Рост дерева, обновление стадий, НО НЕ НАЧИСЛЯЕТ КРИСТАЛЛЫ (они уже начислены за каждую привычку)
 export function completeDay() {
   let needUpdate = false
   
   const user = authStore.user.value
   
   if (user) {
+    // Рост дерева: каждый завершённый день даёт +1 к score
     user.score = (user.score || 0) + 1
-    user.treeStage = Math.floor(user.score / 5) + 1
+    user.treeStage = Math.floor(user.score / 5) + 1  // каждые 5 дней новая стадия
     user.activeDays = (user.activeDays || 0) + 1
     needUpdate = true
     
+    // Прокачка привычек (если включено autoIncrease)
     for (let i = 0; i < user.habits.length; i++) {
       const h = user.habits[i]
       
+      // Для зарядки: каждые 5 дней +5 минут
       if (h.type === 'exercise') {
         h.daysPassed = (h.daysPassed || 0) + 1
         
@@ -73,6 +82,7 @@ export function completeDay() {
         }
       }
       
+      // Для чтения: каждые 7 дней +10 страниц
       if (h.type === 'reading' && h.autoIncrease === true) {
         h.daysInWeek = (h.daysInWeek || 0) + 1
         
@@ -92,7 +102,7 @@ export function completeDay() {
   }
 }
 
-// 3. МАГАЗИН И ИНВЕНТАРЬ
+// ===== 4. МАГАЗИН - ПОКУПКА ПРЕДМЕТОВ =====
 export function buyItem(itemId, cost) {
   let buySuccess = false
   
@@ -110,6 +120,8 @@ export function buyItem(itemId, cost) {
   return buySuccess
 }
 
+// ===== 5. МАГАЗИН - ИСПОЛЬЗОВАНИЕ ЛЕЙКИ =====
+// Восстанавливает увядшее дерево
 export function useWateringCan() {
   let useSuccess = false
   
@@ -119,11 +131,12 @@ export function useWateringCan() {
     const index = user.inventory.indexOf('watering_can')
     
     if (index > -1) {
-      user.inventory.splice(index, 1)
+      user.inventory.splice(index, 1)  // удаляем лейку из инвентаря
       user.isWilted = false
       user.isDead = false
       user.lastLogin = new Date().toISOString()
       
+      // Сбрасываем привычки на новый день
       if (user.habits) {
         for (let i = 0; i < user.habits.length; i++) {
           user.habits[i].completed = false
@@ -138,7 +151,8 @@ export function useWateringCan() {
   return useSuccess
 }
 
-// 4. НАГРАДЫ
+// ===== 6. НАГРАДЫ =====
+// Приветственный бонус
 export function claimCrystalReward(amount) {
   let claimSuccess = false
   
@@ -156,6 +170,7 @@ export function claimCrystalReward(amount) {
   return claimSuccess
 }
 
+// Награда за марафон (цифра в ключе = количество дней)
 export function claimReward(rewardType) {
   let claimSuccess = false
   
@@ -179,7 +194,8 @@ export function claimReward(rewardType) {
   return claimSuccess
 }
 
-// 5. ЦИКЛЫ И БЛОКИРОВКА
+// ===== 7. УПРАВЛЕНИЕ ЦИКЛАМИ =====
+// Проверка статуса цикла (не используется активно)
 export function checkCycleStatus() {
   let isFinished = false
   let needUpdate = false
@@ -207,6 +223,7 @@ export function checkCycleStatus() {
   }
 }
 
+// Начало нового цикла (сбрасывает всё кроме кристаллов и инвентаря)
 export function startNewCycle(newGoal) {
   let needUpdate = false
   
@@ -220,12 +237,14 @@ export function startNewCycle(newGoal) {
     user.isCycleCompleted = false
     needUpdate = true
     
+    // Сбрасываем привычки
     if (user.habits) {
       for (let i = 0; i < user.habits.length; i++) {
         user.habits[i].completed = false
       }
     }
     
+    // Сбрасываем награду за этот цикл (можно будет забрать снова)
     const rewardKey = 'marathon' + newGoal
     if (user.rewards && Object.prototype.hasOwnProperty.call(user.rewards, rewardKey)) {
       user.rewards[rewardKey] = false
@@ -237,25 +256,8 @@ export function startNewCycle(newGoal) {
   }
 }
 
-// 6. СБРОС ЕЖЕДНЕВНЫХ ПРИВЫЧЕК
-export function resetDailyHabits() {
-  let needUpdate = false
-  
-  const user = authStore.user.value
-  
-  if (user && user.habits) {
-    for (let i = 0; i < user.habits.length; i++) {
-      user.habits[i].completed = false
-      needUpdate = true
-    }
-  }
-  
-  if (needUpdate) {
-    updateDatabase()
-  }
-}
-
-// 7. ОТСЛЕЖИВАНИЕ ДНЕЙ ЦИКЛА
+// ===== 8. ОТСЛЕЖИВАНИЕ ПРОГРЕССА ЦИКЛА =====
+// Возвращает текущий день, общее количество дней и процент
 export function getCycleProgress() {
   let currentDay = 0
   let totalDays = 0
@@ -281,7 +283,8 @@ export function getCycleProgress() {
   }
 }
 
-// 8. ПРОВЕРКА ЗАВЕРШЕНИЯ ЦИКЛА И ВЫДАЧА НАГРАДЫ
+// ===== 9. ЗАВЕРШЕНИЕ ЦИКЛА И ВЫДАЧА НАГРАДЫ =====
+// Когда прошло нужное количество дней -> начисляем бонус
 export function checkCycleCompletion() {
   let isCompleted = false
   let rewardAmount = 0
@@ -297,6 +300,7 @@ export function checkCycleCompletion() {
     if (daysPassed >= user.goalDays) {
       isCompleted = true
       
+      // Размер награды зависит от длины цикла
       if (user.goalDays === 1) {
         rewardAmount = 10
       } else if (user.goalDays === 7) {
@@ -311,6 +315,7 @@ export function checkCycleCompletion() {
       user.isCycleCompleted = true
       user.isBlocked = true
       
+      // Отмечаем в rewards, что награда доступна в магазине
       const rewardKey = 'marathon' + user.goalDays
       if (user.rewards) {
         user.rewards[rewardKey] = true
@@ -326,7 +331,7 @@ export function checkCycleCompletion() {
   }
 }
 
-// 9. СБРОС ПОСЛЕ ЦИКЛА
+// ===== 10. СБРОС ПОСЛЕ ЗАВЕРШЕНИЯ ЦИКЛА =====
 export function resetAfterCycle() {
   const user = authStore.user.value
   
@@ -346,7 +351,7 @@ export function resetAfterCycle() {
   }
 }
 
-// 10. СБРОС МЕРТВОГО ДЕРЕВА
+// ===== 11. СБРОС МЁРТВОГО ДЕРЕВА =====
 export function resetDeadTree() {
   const user = authStore.user.value
   

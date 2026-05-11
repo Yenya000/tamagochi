@@ -137,7 +137,7 @@ import {
 const router = useRouter()
 const user = authStore.user
 
-// Уведомления
+// ===== 1. УВЕДОМЛЕНИЯ (замена alert) =====
 const notification = ref({ show: false, message: '', type: '' })
 
 function showNotification(message, type = 'success') {
@@ -147,22 +147,23 @@ function showNotification(message, type = 'success') {
   }, 2000)
 }
 
-// Вычисляемые данные
+// ===== 2. ВЫЧИСЛЯЕМЫЕ ДАННЫЕ =====
 const habits = computed(() => user.value?.habits || [])
 const completedToday = computed(() => habits.value.filter(h => h.completed).length)
 const allHabitsDone = computed(() => {
   return habits.value.length > 0 && completedToday.value === habits.value.length
 })
 
-// Прогресс цикла
+// ===== 3. ПРОГРЕСС ЦИКЛА =====
 const cycleProgress = ref({ currentDay: 0, totalDays: 0, progress: 0 })
 let cycleCompletedFlag = false
 
-// Проверка наличия лейки
+// ===== 4. ПРОВЕРКА НАЛИЧИЯ ЛЕЙКИ =====
 const hasWateringCan = computed(() => {
   return user.value?.inventory?.includes('watering_can')
 })
 
+// ===== 5. ЭМОДЗИ ДЕРЕВА =====
 const treeEmoji = computed(() => {
   let emoji = '🌱'
   
@@ -181,6 +182,7 @@ const treeEmoji = computed(() => {
   return emoji
 })
 
+// ===== 6. СООБЩЕНИЕ ДЕРЕВА =====
 const treeMessage = computed(() => {
   let message = '🌱 Продолжай выполнять привычки!'
   
@@ -197,7 +199,7 @@ const treeMessage = computed(() => {
   return message
 })
 
-// Функция сохранения
+// ===== 7. СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ =====
 function saveUser() {
   if (!user.value) return
   
@@ -212,7 +214,7 @@ function saveUser() {
   }
 }
 
-// Обновление прогресса цикла
+// ===== 8. ОБНОВЛЕНИЕ ПРОГРЕССА ЦИКЛА =====
 function updateCycleProgress() {
   cycleProgress.value = getCycleProgress()
   
@@ -230,7 +232,7 @@ function updateCycleProgress() {
   }
 }
 
-// Проверка нового дня
+// ===== 9. ПРОВЕРКА НОВОГО ДНЯ =====
 function checkNewDay() {
   let needUpdate = false
   let daysPassed = 0
@@ -257,12 +259,14 @@ function checkNewDay() {
   if (daysPassed !== 0) {
     needUpdate = true
     
+    // Сброс привычек на новый день
     if (user.value.habits) {
       user.value.habits.forEach(h => {
         h.completed = false
       })
     }
     
+    // Логика увядания/смерти
     if (daysPassed === 1) {
       if (!user.value.isDead) {
         user.value.isWilted = true
@@ -283,7 +287,8 @@ function checkNewDay() {
   return daysPassed > 0
 }
 
-// Обработка отметки привычки
+// ===== 10. ОТМЕТКА ПРИВЫЧКИ =====
+// ВАЖНО: за каждую привычку начисляется 10 кристаллов (в completeHabit)
 const handleToggle = (habitName) => {
   let errorMessage = ''
   
@@ -297,12 +302,13 @@ const handleToggle = (habitName) => {
     errorMessage = 'Дерево увяло! Используй лейку из магазина.'
   }
   else {
-    completeHabit(habitName)
+    completeHabit(habitName)  // Здесь начисляются +10 за каждую привычку
     
     if (allHabitsDone.value) {
-      completeDay()
+      completeDay()  // Здесь НЕТ начисления кристаллов, только рост дерева
       updateCycleProgress()
-      showNotification('🎉 Все привычки выполнены! +10 кристаллов! Дерево подросло!', 'success')
+      // Показываем общее количество кристаллов, а не "10"
+      showNotification(`🎉 Все привычки выполнены! Дерево подросло! Всего кристаллов: ${user.value.crystals}`, 'success')
     }
   }
   
@@ -311,10 +317,8 @@ const handleToggle = (habitName) => {
   }
 }
 
-// Обработка полива
+// ===== 11. ПОЛИВ ДЕРЕВА =====
 const handleWatering = () => {
-  let wateringDone = false
-  
   if (!user.value) {
     showNotification('Пользователь не найден', 'error')
   }
@@ -333,14 +337,11 @@ const handleWatering = () => {
     }
     
     saveUser()
-    wateringDone = true
     showNotification('🌿 Дерево ожило! Продолжайте выполнять привычки!', 'success')
   }
-  
-  return wateringDone
 }
 
-// Сброс и перезапуск (после смерти - ведёт на выбор целей)
+// ===== 12. СБРОС И ПЕРЕЗАПУСК ПОСЛЕ СМЕРТИ =====
 const resetAndRestart = () => {
   if (!user.value) return
   
@@ -354,13 +355,14 @@ const resetAndRestart = () => {
   router.push('/select-habit')
 }
 
-// Жизненный цикл
+// ===== 13. ЖИЗНЕННЫЙ ЦИКЛ =====
 onMounted(() => {
   if (!user.value) {
     router.push('/login')
     return
   }
   
+  // Проверка смерти при загрузке
   const lastLogin = user.value.lastLogin ? new Date(user.value.lastLogin) : null
   const today = new Date()
   
@@ -378,6 +380,7 @@ onMounted(() => {
     }
   }
   
+  // Если нет привычек - на выбор целей
   let hasNoHabits = false
   
   if (!user.value.habits || user.value.habits.length === 0) {
@@ -396,6 +399,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ... твои стили ... */
 .home-container {
   max-width: 600px;
   margin: 0 auto;

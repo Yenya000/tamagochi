@@ -5,7 +5,13 @@
       <p class="subtitle">Нажми на карточку, чтобы активировать цель</p>
     </div>
 
+    <!-- Уведомление -->
+    <div v-if="notification.show" class="notification" :class="notification.type">
+      {{ notification.message }}
+    </div>
+
     <div class="goals-grid">
+      <!-- Водный баланс -->
       <div 
         class="goal-card-item" 
         :class="{ 'active': goals.water.active }"
@@ -33,6 +39,7 @@
         </div>
       </div>
 
+      <!-- Зарядка -->
       <div 
         class="goal-card-item" 
         :class="{ 'active': goals.gym.active }"
@@ -61,6 +68,7 @@
         </div>
       </div>
 
+      <!-- Чтение -->
       <div 
         class="goal-card-item" 
         :class="{ 'active': goals.books.active }"
@@ -89,6 +97,7 @@
         </div>
       </div>
 
+      <!-- Медитация -->
       <div 
         class="goal-card-item" 
         :class="{ 'active': goals.meditation.active }"
@@ -113,6 +122,7 @@
       </div>
     </div>
 
+    <!-- Выбор длительности цикла -->
     <div class="cycle-box">
       <div class="cycle-info">
         <h3>Длительность цикла</h3>
@@ -146,6 +156,7 @@ import { authStore } from '../composables/useAuth'
 const router = useRouter()
 const user = authStore.user
 
+// ===== 1. СОСТОЯНИЯ =====
 const goalDays = ref(30)
 const goals = reactive({
   water: { active: false, val: 8, unit: 'стаканов' },
@@ -154,6 +165,17 @@ const goals = reactive({
   meditation: { active: false, val: 10 }
 })
 
+// ===== 2. УВЕДОМЛЕНИЯ =====
+const notification = ref({ show: false, message: '', type: '' })
+
+function showNotification(message, type = 'error') {
+  notification.value = { show: true, message, type }
+  setTimeout(() => {
+    notification.value.show = false
+  }, 2000)
+}
+
+// ===== 3. СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ =====
 function saveUser() {
   if (!user.value) return
   
@@ -168,13 +190,15 @@ function saveUser() {
   }
 }
 
+// ===== 4. НАЧАЛО НОВОГО ЦИКЛА =====
 const startCycle = () => {
-  let errorMessage = ''
-  
+  // Проверка авторизации
   if (!user.value) {
-    errorMessage = 'Ошибка: пользователь не авторизован'
+    showNotification('Ошибка: пользователь не авторизован')
+    return
   }
   
+  // Сбор выбранных привычек
   const habits = []
 
   if (goals.water.active) {
@@ -218,15 +242,13 @@ const startCycle = () => {
     })
   }
 
+  // Проверка: выбрана хотя бы одна привычка
   if (habits.length === 0) {
-    errorMessage = 'Нужно выбрать хотя бы одну цель!'
-  }
-  
-  if (errorMessage !== '') {
-    alert(errorMessage)
+    showNotification('Нужно выбрать хотя бы одну цель!')
     return
   }
 
+  // Запуск нового цикла
   user.value.habits = habits
   user.value.isDead = false
   user.value.isWilted = false
@@ -244,6 +266,7 @@ const startCycle = () => {
 </script>
 
 <style scoped>
+/* ... твои стили ... */
 .selection-container {
   max-width: 1000px;
   margin: 0 auto;
@@ -454,5 +477,39 @@ input:checked + .slider:before {
 
 .confirm-btn:hover {
   transform: translateY(-3px);
+}
+
+.notification {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 30px;
+  background-color: var(--card-bg, #1a1a1a);
+  color: var(--text-main, #fff);
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+.notification.success {
+  background-color: #34c759;
+  color: white;
+}
+
+.notification.error {
+  background-color: #ff3b30;
+  color: white;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 </style>
